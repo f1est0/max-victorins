@@ -35,6 +35,7 @@
   let isHost = false;
   let roomCode = null;
   let myId = null;
+  let gameMode = 'multiplayer';
   let questionDeadline = 0;
   let timerInterval = null;
 
@@ -73,11 +74,14 @@
       case 'room_created':
         isHost = msg.isHost;
         roomCode = msg.code;
-        $('lobby-code').textContent = roomCode;
-        $('btn-start').hidden = !isHost;
-        $('lobby-wait').hidden = isHost;
-        renderPlayers(msg.players);
-        showScreen('lobby');
+        gameMode = msg.mode || 'multiplayer';
+        if (gameMode === 'multiplayer') {
+          $('lobby-code').textContent = roomCode;
+          $('btn-start').hidden = !isHost;
+          $('lobby-wait').hidden = isHost;
+          renderPlayers(msg.players);
+          showScreen('lobby');
+        }
         break;
 
       case 'room_update':
@@ -132,7 +136,8 @@
 
   function renderQuestion(q) {
     currentOptionIndex = null;
-    $('q-progress').textContent = `Вопрос ${q.index + 1} из ${q.total}`;
+    const modeSuffix = gameMode === 'bot' ? ' · против бота' : gameMode === 'solo' ? ' · одиночная' : '';
+    $('q-progress').textContent = `Вопрос ${q.index + 1} из ${q.total}${modeSuffix}`;
     $('q-text').textContent = q.text;
     $('q-status').textContent = '';
 
@@ -200,12 +205,16 @@
   }
 
   // --- Home screen actions ---
-  $('btn-create').addEventListener('click', () => {
-    const name = (nameInput.value || 'Хост').trim().slice(0, 24);
+  function createRoom(mode) {
+    const name = (nameInput.value || 'Игрок').trim().slice(0, 24);
     localStorage.setItem('quiz_name', name);
     $('home-error').textContent = '';
-    send({ type: 'create_room', name, packId: $('pack-select').value });
-  });
+    send({ type: 'create_room', name, packId: $('pack-select').value, mode });
+  }
+
+  $('btn-create').addEventListener('click', () => createRoom('multiplayer'));
+  $('btn-solo').addEventListener('click', () => createRoom('solo'));
+  $('btn-bot').addEventListener('click', () => createRoom('bot'));
 
   $('btn-join').addEventListener('click', () => {
     const name = (nameInput.value || 'Игрок').trim().slice(0, 24);

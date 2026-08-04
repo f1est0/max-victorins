@@ -102,15 +102,19 @@ wss.on('connection', (ws) => {
           ws.send(JSON.stringify({ type: 'error', message: 'Пакет вопросов не найден' }));
           return;
         }
+        const mode = ['solo', 'bot'].includes(msg.mode) ? msg.mode : 'multiplayer';
         const name = String(msg.name || 'Хост').slice(0, 24);
-        currentRoom = rooms.create(clientId, pack);
+        currentRoom = rooms.create(clientId, pack, mode);
         currentRoom.addPlayer(clientId, name, ws);
+        if (mode === 'bot') currentRoom.addBot();
         ws.send(JSON.stringify({
           type: 'room_created',
           code: currentRoom.code,
           isHost: true,
+          mode,
           players: currentRoom.playersList(),
         }));
+        if (mode !== 'multiplayer') currentRoom.startGame();
         break;
       }
 

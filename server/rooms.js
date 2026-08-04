@@ -14,20 +14,39 @@ function generateCode(existingCodes) {
   return code;
 }
 
+const BOT_ID = 'bot';
+const BOT_NAME = 'Бот';
+const BOT_ACCURACY = 0.65; // chance the bot answers correctly
+const BOT_MIN_DELAY_MS = 2500;
+const BOT_MAX_DELAY_MS = 11000;
+
 class Room {
-  constructor(code, hostId, pack) {
+  constructor(code, hostId, pack, mode) {
     this.code = code;
     this.hostId = hostId;
     this.pack = pack; // { title, questions: [...] }
-    this.players = new Map(); // id -> { id, name, ws, score, answered }
+    this.mode = mode || 'multiplayer'; // multiplayer | solo | bot
+    this.players = new Map(); // id -> { id, name, ws, score, answered, isBot }
     this.state = 'lobby'; // lobby | question | reveal | finished
     this.questionIndex = -1;
     this.timer = null;
+    this.botTimer = null;
     this.questionStartedAt = 0;
   }
 
   addPlayer(id, name, ws) {
-    this.players.set(id, { id, name, ws, score: 0, answered: null });
+    this.players.set(id, { id, name, ws, score: 0, answered: null, isBot: false });
+  }
+
+  addBot() {
+    this.players.set(BOT_ID, {
+      id: BOT_ID,
+      name: BOT_NAME,
+      ws: null,
+      score: 0,
+      answered: null,
+      isBot: true,
+    });
   }
 
   removePlayer(id) {
@@ -35,7 +54,10 @@ class Room {
   }
 
   isEmpty() {
-    return this.players.size === 0;
+    for (const p of this.players.values()) {
+      if (!p.isBot) return false;
+    }
+    return true;
   }
 
   playersList() {
@@ -57,20 +79,24 @@ class Room {
   broadcast(message, exceptId) {
     const data = JSON.stringify(message);
     for (const p of this.players.values()) {
-      if (p.id === exceptId) continue;
-      if (p.ws.readyState === 1) p.ws.send(data);
+      if (p.id === exceptId || p.isBot) continue;
+      if (p.ws && p.ws.readyState === 1) p.ws.send(data);
     }
   }
 
   sendTo(id, message) {
     const p = this.players.get(id);
-    if (p && p.ws.readyState === 1) p.ws.send(JSON.stringify(message));
+    if (p && !p.isBot && p.ws && p.ws.readyState === 1) p.ws.send(JSON.stringify(message));
   }
 
   clearTimer() {
     if (this.timer) {
       clearTimeout(this.timer);
       this.timer = null;
+    }
+    if (this.botTimer) {
+      clearTimeout(this.botTimer);
+      this.botTimer = null;
     }
   }
 
@@ -108,6 +134,29 @@ class Room {
     });
 
     this.timer = setTimeout(() => this.revealAnswer(), QUESTION_TIME_MS);
+
+    if (this.mode === 'bot') this.scheduleBotAnswer();
+  }
+
+  scheduleBotAnswer() {
+    const q = this.currentQuestion();
+    const correct = Math.random() < BOT_ACCURACY;
+    const answerIndex = correct
+      ? q.correctIndex
+      : q.options
+          .map((_, i) => i)
+          .filter((i) => i !== q.correctIndex)[
+            Math.floor(Math.random() * (q.options.length - 1))
+          ];
+
+    const delay = Math.min(
+      BOT_MIN_DELAY_MS + Math.random() * (BOT_MAX_DELAY_MS - BOT_MIN_DELAY_MS),
+      QUESTION_TIME_MS - 500
+    );
+
+    this.botTimer = setTimeout(() => {
+      if (this.state === 'question') this.submitAnswer(BOT_ID, answerIndex);
+    }, delay);
   }
 
   allAnswered() {
@@ -166,9 +215,9 @@ class RoomManager {
     this.rooms = new Map();
   }
 
-  create(hostId, pack) {
+  create(hostId, pack, mode) {
     const code = generateCode(new Set(this.rooms.keys()));
-    const room = new Room(code, hostId, pack);
+    const room = new Room(code, hostId, pack, mode);
     this.rooms.set(code, room);
     return room;
   }

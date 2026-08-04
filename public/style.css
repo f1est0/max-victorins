@@ -38,6 +38,13 @@ html, body {
 h1 { font-size: 1.6rem; margin: 0 0 16px; }
 h2 { font-size: 1.15rem; margin: 0 0 12px; }
 
+.btn-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+
 .logo {
   display: block;
   width: 96px;
