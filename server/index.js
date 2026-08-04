@@ -3,7 +3,7 @@ const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
 const { WebSocketServer } = require('ws');
-const { RoomManager } = require('./rooms');
+const { RoomManager, QUESTION_TIME_MS } = require('./rooms');
 const { verifyInitData } = require('./auth');
 const store = require('./store');
 const { ADMIN_USER_IDS } = require('./env');
@@ -97,25 +97,46 @@ const server = http.createServer((req, res) => {
 });
 
 const wss = new WebSocketServer({ server, path: '/ws' });
+const DISCONNECT_GRACE_MS = 45000; // window to reopen the app / reconnect before we give up the seat
 
 wss.on('connection', (ws) => {
-  const clientId = crypto.randomUUID();
+  let clientId = crypto.randomUUID(); // may be replaced by a persistent session id via 'hello'
   let currentRoom = null;
   let authedProfile = null; // set once a valid, verified MAX initData comes in
 
+  // A closed socket doesn't immediately evict the player — it just marks them
+  // disconnected and starts a grace timer, so an accidental close / app kill
+  // (which fires 'close' well before the user gets a chance to reopen) doesn't
+  // instantly cost them their seat. Reconnecting via 'hello' cancels the timer.
   const leaveCurrentRoom = () => {
     if (!currentRoom) return;
-    const wasInProgress =
-      currentRoom.mode === 'matchmaking' &&
-      (currentRoom.state === 'question' || currentRoom.state === 'reveal');
-    currentRoom.removePlayer(clientId);
-    currentRoom.broadcast({ type: 'room_update', players: currentRoom.playersList() });
-    if (wasInProgress && authedProfile) {
-      store.applyAbortPenalty(authedProfile.id);
+    const player = currentRoom.players.get(clientId);
+    if (!player || player.ws !== ws) {
+      // Either already gone, or this connection was superseded by a reconnect.
+      currentRoom = null;
+      return;
     }
-    if (currentRoom.isEmpty()) {
-      rooms.delete(currentRoom.code);
-    }
+
+    const room = currentRoom;
+    const cid = clientId;
+    const profile = authedProfile;
+    player.ws = null;
+
+    player.disconnectTimer = setTimeout(() => {
+      const stillThere = room.players.get(cid);
+      if (!stillThere || stillThere.ws) return; // reconnected in the meantime
+      const wasInProgress =
+        room.mode === 'matchmaking' && (room.state === 'question' || room.state === 'reveal');
+      room.removePlayer(cid);
+      room.broadcast({ type: 'room_update', players: room.playersList() });
+      if (wasInProgress && profile) {
+        store.applyAbortPenalty(profile.id);
+      }
+      if (room.isEmpty()) {
+        rooms.delete(room.code);
+      }
+    }, DISCONNECT_GRACE_MS);
+
     currentRoom = null;
   };
 
@@ -128,6 +149,37 @@ wss.on('connection', (ws) => {
     }
 
     switch (msg.type) {
+      case 'hello': {
+        const sid = typeof msg.sessionId === 'string' ? msg.sessionId.slice(0, 128) : '';
+        if (sid) clientId = sid;
+
+        const found = rooms.findPlayerRoom(clientId);
+        if (!found) return;
+        const { room, player } = found;
+        if (player.disconnectTimer) {
+          clearTimeout(player.disconnectTimer);
+          player.disconnectTimer = null;
+        }
+        player.ws = ws;
+        currentRoom = room;
+
+        const payload = {
+          type: 'resumed',
+          code: room.code,
+          mode: room.mode,
+          isHost: room.hostId === clientId,
+          state: room.state,
+          players: room.playersList(),
+          leaderboard: room.leaderboard(),
+        };
+        if (room.state === 'question') {
+          const remaining = Math.max(0, QUESTION_TIME_MS - (Date.now() - room.questionStartedAt));
+          payload.current = room.questionPayloadFor(player, remaining);
+        }
+        ws.send(JSON.stringify(payload));
+        break;
+      }
+
       case 'auth': {
         const result = verifyInitData(msg.initData);
         if (!result.ok) {

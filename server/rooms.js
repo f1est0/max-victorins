@@ -63,6 +63,7 @@ class Room {
       fastCorrectCount: 0,
       roundScoreDelta: 0,
       lastAnswerActualIndex: null,
+      disconnectTimer: null,
     });
   }
 
@@ -118,6 +119,20 @@ class Room {
 
   currentQuestion() {
     return this.pack.questions[this.questionIndex];
+  }
+
+  questionPayloadFor(p, timeLimitMs) {
+    const q = this.currentQuestion();
+    const order = p.optionMap || shuffledIndices(q.options.length);
+    p.optionMap = order;
+    return {
+      type: 'question',
+      index: this.questionIndex,
+      total: this.pack.questions.length,
+      text: q.text,
+      options: order.map((i) => q.options[i]),
+      timeLimitMs,
+    };
   }
 
   broadcast(message, exceptId) {
@@ -176,8 +191,6 @@ class Room {
     this.questionStartedAt = Date.now();
     this.firstAnswerReceived = false;
 
-    const q = this.currentQuestion();
-
     for (const p of this.players.values()) {
       p.answered = null;
       p.distractedThisQuestion = false;
@@ -189,16 +202,8 @@ class Room {
       }
       // Each player gets their own shuffled option order, so reading
       // someone else's screen (or the answer for a different position) doesn't help.
-      const order = shuffledIndices(q.options.length);
-      p.optionMap = order;
-      this.sendTo(p.id, {
-        type: 'question',
-        index: this.questionIndex,
-        total: this.pack.questions.length,
-        text: q.text,
-        options: order.map((i) => q.options[i]),
-        timeLimitMs: QUESTION_TIME_MS,
-      });
+      p.optionMap = null;
+      this.sendTo(p.id, this.questionPayloadFor(p, QUESTION_TIME_MS));
     }
 
     this.timer = setTimeout(() => this.revealAnswer(), QUESTION_TIME_MS);
@@ -326,6 +331,14 @@ class RoomManager {
 
   get(code) {
     return this.rooms.get((code || '').toUpperCase());
+  }
+
+  findPlayerRoom(clientId) {
+    for (const room of this.rooms.values()) {
+      const player = room.players.get(clientId);
+      if (player && !player.isBot) return { room, player };
+    }
+    return null;
   }
 
   delete(code) {

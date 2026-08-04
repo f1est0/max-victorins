@@ -14,12 +14,21 @@
   // --- DOM helpers ---
   const $ = (id) => document.getElementById(id);
   const screens = ['home', 'lobby', 'question', 'reveal', 'final', 'banned', 'admin'];
-  const ABORTABLE_SCREENS = ['lobby', 'question', 'reveal'];
+  const ABORTABLE_SCREENS = ['question', 'reveal'];
+  const BACK_SCREENS = ['lobby'];
   function showScreen(name) {
     for (const s of screens) {
       $('screen-' + s).classList.toggle('active', s === name);
     }
     $('btn-abort').hidden = !ABORTABLE_SCREENS.includes(name);
+    $('btn-back').hidden = !BACK_SCREENS.includes(name);
+  }
+
+  // --- Persistent session id, so a reload/reconnect can resume the same game ---
+  let sessionId = localStorage.getItem('quiz_session_id');
+  if (!sessionId) {
+    sessionId = (crypto.randomUUID ? crypto.randomUUID() : `s_${Date.now()}_${Math.random().toString(36).slice(2)}`);
+    localStorage.setItem('quiz_session_id', sessionId);
   }
 
   const nameInput = $('name-input');
@@ -46,6 +55,7 @@
   }
 
   ws.addEventListener('open', () => {
+    send({ type: 'hello', sessionId });
     loadPacks();
     if (MaxApp && MaxApp.initData) {
       send({ type: 'auth', initData: MaxApp.initData });
@@ -78,6 +88,30 @@
 
   function handleMessage(msg) {
     switch (msg.type) {
+      case 'resumed':
+        isHost = msg.isHost;
+        roomCode = msg.code;
+        gameMode = msg.mode || 'multiplayer';
+        if (msg.state === 'lobby') {
+          $('lobby-code').textContent = roomCode;
+          renderPlayers(msg.players);
+          showScreen('lobby');
+        } else if (msg.state === 'question' && msg.current) {
+          renderQuestion(msg.current);
+          showScreen('question');
+        } else if (msg.state === 'finished') {
+          renderFinal(msg.leaderboard);
+          showScreen('final');
+        } else {
+          // Reconnected during the brief reveal window between questions —
+          // show the leaderboard and wait for the next 'question' broadcast.
+          $('reveal-title').textContent = 'Переподключение…';
+          $('reveal-answers').innerHTML = '';
+          renderLeaderboard('reveal-leaderboard', msg.leaderboard);
+          showScreen('reveal');
+        }
+        break;
+
       case 'auth_result':
         if (!msg.ok) break;
         if (msg.name) nameInput.value = msg.name;
@@ -364,5 +398,53 @@
 
   $('btn-confirm-abort').addEventListener('click', () => {
     location.reload();
+  });
+
+  // --- Leave lobby before the game has started: no confirmation needed ---
+  $('btn-back').addEventListener('click', () => {
+    location.reload();
+  });
+
+  // --- Copy room code ---
+  $('btn-copy-code').addEventListener('click', async () => {
+    const btn = $('btn-copy-code');
+    try {
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        await navigator.clipboard.writeText(roomCode);
+      } else {
+        const ta = document.createElement('textarea');
+        ta.value = roomCode;
+        ta.style.position = 'fixed';
+        ta.style.opacity = '0';
+        document.body.appendChild(ta);
+        ta.select();
+        document.execCommand('copy');
+        document.body.removeChild(ta);
+      }
+      const original = btn.textContent;
+      btn.textContent = '✓';
+      setTimeout(() => { btn.textContent = original; }, 1200);
+    } catch (e) {
+      console.warn('Copy failed:', e);
+    }
+  });
+
+  // --- Invite a friend via MAX's native share sheet ---
+  $('btn-share').addEventListener('click', () => {
+    const text = `Присоединяйся к моей викторине в Max! Код комнаты: ${roomCode}`;
+    try {
+      if (MaxApp && typeof MaxApp.shareMaxContent === 'function') {
+        MaxApp.shareMaxContent({ text, link: location.origin });
+        return;
+      }
+      if (MaxApp && typeof MaxApp.shareContent === 'function') {
+        MaxApp.shareContent({ text, link: location.origin });
+        return;
+      }
+    } catch (e) {
+      console.warn('Share failed:', e);
+    }
+    // Outside MAX (plain browser testing) — just copy the invite text instead.
+    navigator.clipboard?.writeText(`${text} ${location.origin}`).catch(() => {});
   });
 })();

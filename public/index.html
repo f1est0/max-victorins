@@ -12,6 +12,7 @@
 <div id="app">
 
   <button id="btn-abort" class="abort-btn" hidden>✕ Прервать</button>
+  <button id="btn-back" class="back-btn" hidden>← Назад</button>
 
   <section id="screen-home" class="screen active">
     <div class="brand">
@@ -46,8 +47,9 @@
   </section>
 
   <section id="screen-lobby" class="screen">
-    <h1>Комната <span id="lobby-code"></span></h1>
-    <p class="hint">Отправьте код друзьям в чате Max, пусть введут его в приложении</p>
+    <h1>Комната <span id="lobby-code"></span> <button id="btn-copy-code" class="copy-btn" title="Скопировать код">⧉</button></h1>
+    <button id="btn-share" class="btn">Пригласить в Max</button>
+    <p class="hint">Или отправьте код друзьям в чате Max, пусть введут его в приложении</p>
     <ul id="lobby-players" class="players-list"></ul>
     <button id="btn-start" class="btn primary" hidden>Начать игру</button>
     <p id="lobby-wait" class="hint">Ожидание хоста…</p>

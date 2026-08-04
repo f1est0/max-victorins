@@ -46,6 +46,31 @@ html, body {
 
 #screen-lobby, #screen-question, #screen-reveal { padding-top: 40px; }
 
+.back-btn {
+  position: fixed;
+  top: 14px;
+  left: max(14px, calc((100vw - 480px) / 2 + 14px));
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid #2c303a;
+  color: var(--muted);
+  font-size: .78rem;
+  padding: 6px 12px;
+  border-radius: 20px;
+  cursor: pointer;
+  z-index: 20;
+}
+
+.copy-btn {
+  background: transparent;
+  border: 1px solid #2c303a;
+  color: var(--muted);
+  font-size: .85rem;
+  padding: 3px 8px;
+  border-radius: 8px;
+  cursor: pointer;
+  vertical-align: middle;
+}
+
 .modal-overlay {
   position: fixed;
   inset: 0;
