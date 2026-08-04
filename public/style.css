@@ -169,6 +169,14 @@ input[type="number"]::-webkit-inner-spin-button {
   margin: 0;
 }
 
+#bot-link {
+  display: block;
+  text-align: center;
+  text-decoration: none;
+  box-sizing: border-box;
+  margin-top: 12px;
+}
+
 .btn {
   width: 100%;
   padding: 13px;
