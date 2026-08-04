@@ -125,6 +125,7 @@ const MIME = {
 
 const DEFAULT_QUESTION_COUNT = 10; // used when the client doesn't ask for a specific count
 const MAX_QUESTIONS_PER_GAME = 200; // sanity ceiling only — the real limit is however many questions the selection actually has
+const BOT_GAME_QUESTION_COUNT = 20; // vs-bot matches always use this many questions from the chosen topic
 
 function loadPacks() {
   const packs = {};
@@ -409,13 +410,18 @@ wss.on('connection', (ws) => {
           ws.send(JSON.stringify({ type: 'error', message: 'Вы забанены и не можете играть' }));
           return;
         }
-        const pack = buildEffectivePack(msg.selection);
+        const mode = ['solo', 'bot'].includes(msg.mode) ? msg.mode : 'multiplayer';
+        // A bot match is always a fixed-length duel — the question-count field
+        // on the home screen only applies to solo/multiplayer.
+        const selection = mode === 'bot'
+          ? { ...msg.selection, count: BOT_GAME_QUESTION_COUNT }
+          : msg.selection;
+        const pack = buildEffectivePack(selection);
         if (!pack) {
           ws.send(JSON.stringify({ type: 'error', message: 'Пакет вопросов не найден' }));
           return;
         }
         leaveRoomNow(); // in case this connection was already sitting in another room
-        const mode = ['solo', 'bot'].includes(msg.mode) ? msg.mode : 'multiplayer';
         const name = resolveName(authedProfile, msg.name, 'Хост');
         currentRoom = rooms.create(clientId, pack, mode);
         currentRoom.onGameOver = (results) => handleGameOver(mode, results);

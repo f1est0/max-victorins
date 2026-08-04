@@ -34,9 +34,19 @@ function shuffledIndices(n) {
 
 const BOT_ID = 'bot';
 const BOT_NAME = 'Бот';
-const BOT_ACCURACY = 0.65; // chance the bot answers correctly
-const BOT_MIN_DELAY_MS = 1500;
-const BOT_MAX_DELAY_MS = 9000;
+
+// Bot difficulty: 1 (easy) .. 5 (very hard) — change this one number to retune the bot.
+// Higher difficulty means it answers correctly more often AND reacts faster.
+const BOT_DIFFICULTY = 4;
+const BOT_DIFFICULTY_SETTINGS = {
+  1: { accuracy: 0.40, minDelayMs: 3000, maxDelayMs: 11000 },
+  2: { accuracy: 0.55, minDelayMs: 2500, maxDelayMs: 10000 },
+  3: { accuracy: 0.65, minDelayMs: 1500, maxDelayMs: 9000 },
+  4: { accuracy: 0.80, minDelayMs: 1000, maxDelayMs: 7000 },
+  5: { accuracy: 0.92, minDelayMs: 700, maxDelayMs: 5000 },
+};
+const { accuracy: BOT_ACCURACY, minDelayMs: BOT_MIN_DELAY_MS, maxDelayMs: BOT_MAX_DELAY_MS } =
+  BOT_DIFFICULTY_SETTINGS[BOT_DIFFICULTY] || BOT_DIFFICULTY_SETTINGS[3];
 
 class Room {
   constructor(code, hostId, pack, mode) {
