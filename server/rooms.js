@@ -1,8 +1,9 @@
 const crypto = require('crypto');
 
 const CODE_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; // no 0/O/1/I
-const QUESTION_TIME_MS = 20000;
+const QUESTION_TIME_MS = 12000; // short window: enough to know the answer, too tight to google it
 const REVEAL_TIME_MS = 4000;
+const FAST_ANSWER_MS = 1200; // correct answers faster than this are flagged as suspicious
 
 function generateCode(existingCodes) {
   let code;
@@ -14,11 +15,20 @@ function generateCode(existingCodes) {
   return code;
 }
 
+function shuffledIndices(n) {
+  const arr = Array.from({ length: n }, (_, i) => i);
+  for (let i = arr.length - 1; i > 0; i--) {
+    const j = crypto.randomInt(i + 1);
+    [arr[i], arr[j]] = [arr[j], arr[i]];
+  }
+  return arr;
+}
+
 const BOT_ID = 'bot';
 const BOT_NAME = 'Бот';
 const BOT_ACCURACY = 0.65; // chance the bot answers correctly
-const BOT_MIN_DELAY_MS = 2500;
-const BOT_MAX_DELAY_MS = 11000;
+const BOT_MIN_DELAY_MS = 1500;
+const BOT_MAX_DELAY_MS = 9000;
 
 class Room {
   constructor(code, hostId, pack, mode) {
@@ -35,7 +45,18 @@ class Room {
   }
 
   addPlayer(id, name, ws) {
-    this.players.set(id, { id, name, ws, score: 0, answered: null, isBot: false });
+    this.players.set(id, {
+      id,
+      name,
+      ws,
+      score: 0,
+      answered: null,
+      isBot: false,
+      optionMap: null,
+      distractions: 0,
+      distractedThisQuestion: false,
+      fastCorrectCount: 0,
+    });
   }
 
   addBot() {
@@ -46,7 +67,19 @@ class Room {
       score: 0,
       answered: null,
       isBot: true,
+      optionMap: null,
+      distractions: 0,
+      distractedThisQuestion: false,
+      fastCorrectCount: 0,
     });
+  }
+
+  markDistracted(id) {
+    if (this.state !== 'question') return;
+    const p = this.players.get(id);
+    if (!p || p.distractedThisQuestion) return;
+    p.distractedThisQuestion = true;
+    p.distractions += 1;
   }
 
   removePlayer(id) {
@@ -65,6 +98,8 @@ class Room {
       id: p.id,
       name: p.name,
       score: p.score,
+      distractions: p.distractions,
+      fastCorrectCount: p.fastCorrectCount,
     }));
   }
 
@@ -120,18 +155,30 @@ class Room {
     }
 
     this.state = 'question';
-    for (const p of this.players.values()) p.answered = null;
     this.questionStartedAt = Date.now();
 
     const q = this.currentQuestion();
-    this.broadcast({
-      type: 'question',
-      index: this.questionIndex,
-      total: this.pack.questions.length,
-      text: q.text,
-      options: q.options,
-      timeLimitMs: QUESTION_TIME_MS,
-    });
+
+    for (const p of this.players.values()) {
+      p.answered = null;
+      p.distractedThisQuestion = false;
+      if (p.isBot) {
+        p.optionMap = null;
+        continue;
+      }
+      // Each player gets their own shuffled option order, so reading
+      // someone else's screen (or the answer for a different position) doesn't help.
+      const order = shuffledIndices(q.options.length);
+      p.optionMap = order;
+      this.sendTo(p.id, {
+        type: 'question',
+        index: this.questionIndex,
+        total: this.pack.questions.length,
+        text: q.text,
+        options: order.map((i) => q.options[i]),
+        timeLimitMs: QUESTION_TIME_MS,
+      });
+    }
 
     this.timer = setTimeout(() => this.revealAnswer(), QUESTION_TIME_MS);
 
@@ -175,11 +222,13 @@ class Room {
     const q = this.currentQuestion();
     const elapsed = Date.now() - this.questionStartedAt;
     const timeLeftRatio = Math.max(0, 1 - elapsed / QUESTION_TIME_MS);
-    const correct = optionIndex === q.correctIndex;
+    const actualIndex = p.optionMap ? p.optionMap[optionIndex] : optionIndex;
+    const correct = actualIndex === q.correctIndex;
     const scoreDelta = correct ? Math.round(500 + 500 * timeLeftRatio) : 0;
 
     p.answered = optionIndex;
     p.score += scoreDelta;
+    if (correct && elapsed < FAST_ANSWER_MS) p.fastCorrectCount += 1;
 
     this.sendTo(id, {
       type: 'answer_result',
@@ -201,11 +250,14 @@ class Room {
     this.clearTimer();
     this.state = 'reveal';
     const q = this.currentQuestion();
-    this.broadcast({
-      type: 'question_end',
-      correctIndex: q.correctIndex,
-      leaderboard: this.leaderboard(),
-    });
+    const board = this.leaderboard();
+
+    for (const p of this.players.values()) {
+      if (p.isBot) continue;
+      const correctIndex = p.optionMap ? p.optionMap.indexOf(q.correctIndex) : q.correctIndex;
+      this.sendTo(p.id, { type: 'question_end', correctIndex, leaderboard: board });
+    }
+
     this.timer = setTimeout(() => this.nextQuestion(), REVEAL_TIME_MS);
   }
 }

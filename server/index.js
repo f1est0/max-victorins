@@ -154,6 +154,12 @@ wss.on('connection', (ws) => {
         break;
       }
 
+      case 'distracted': {
+        if (!currentRoom) return;
+        currentRoom.markDistracted(clientId);
+        break;
+      }
+
       default:
         break;
     }

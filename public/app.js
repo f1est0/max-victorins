@@ -133,9 +133,13 @@
   }
 
   let currentOptionIndex = null;
+  let onQuestionScreen = false;
+  let distractionReported = false;
 
   function renderQuestion(q) {
     currentOptionIndex = null;
+    onQuestionScreen = true;
+    distractionReported = false;
     const modeSuffix = gameMode === 'bot' ? ' · против бота' : gameMode === 'solo' ? ' · одиночная' : '';
     $('q-progress').textContent = `Вопрос ${q.index + 1} из ${q.total}${modeSuffix}`;
     $('q-text').textContent = q.text;
@@ -179,6 +183,7 @@
   }
 
   function renderReveal(msg) {
+    onQuestionScreen = false;
     clearInterval(timerInterval);
     const buttons = document.querySelectorAll('#q-options .opt-btn');
     buttons.forEach((b, i) => {
@@ -191,6 +196,7 @@
   }
 
   function renderFinal(leaderboard) {
+    onQuestionScreen = false;
     renderLeaderboard('final-leaderboard', leaderboard);
   }
 
@@ -199,10 +205,28 @@
     ol.innerHTML = '';
     leaderboard.forEach((p, i) => {
       const li = document.createElement('li');
-      li.innerHTML = `<span><span class="rank">${i + 1}.</span>${p.name}</span><span>${p.score}</span>`;
+      let badges = '';
+      if (p.distractions > 0) {
+        badges += `<span class="badge" title="Отвлекался во время вопросов">👀${p.distractions}</span>`;
+      }
+      if (p.fastCorrectCount >= 3) {
+        badges += `<span class="badge" title="Много очень быстрых верных ответов">⚡${p.fastCorrectCount}</span>`;
+      }
+      li.innerHTML = `<span><span class="rank">${i + 1}.</span>${p.name}${badges}</span><span>${p.score}</span>`;
       ol.appendChild(li);
     });
   }
+
+  // --- Anti-cheat: flag tab-switching / losing focus while a question is live ---
+  function reportDistractionIfNeeded() {
+    if (!onQuestionScreen || distractionReported) return;
+    if (document.hidden || !document.hasFocus()) {
+      distractionReported = true;
+      send({ type: 'distracted' });
+    }
+  }
+  document.addEventListener('visibilitychange', reportDistractionIfNeeded);
+  window.addEventListener('blur', reportDistractionIfNeeded);
 
   // --- Home screen actions ---
   function createRoom(mode) {

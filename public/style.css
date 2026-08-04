@@ -120,6 +120,12 @@ input, select {
 
 .leaderboard li .rank { color: var(--accent); font-weight: 700; margin-right: 8px; }
 
+.badge {
+  font-size: .75rem;
+  color: var(--muted);
+  margin-left: 8px;
+}
+
 .q-header {
   display: flex;
   justify-content: space-between;
