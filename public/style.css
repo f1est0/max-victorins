@@ -1,0 +1,131 @@
+:root {
+  --bg: #0f1115;
+  --card: #1a1d24;
+  --accent: #5b8def;
+  --accent-dark: #4470c4;
+  --text: #f1f3f6;
+  --muted: #8a8f9a;
+  --correct: #34c759;
+  --wrong: #ff4d4f;
+  font-size: 16px;
+}
+
+* { box-sizing: border-box; }
+
+html, body {
+  margin: 0;
+  padding: 0;
+  background: var(--bg);
+  color: var(--text);
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+}
+
+#app {
+  max-width: 480px;
+  margin: 0 auto;
+  padding: 20px 16px 40px;
+  min-height: 100vh;
+}
+
+.screen { display: none; }
+.screen.active { display: block; animation: fade .2s ease; }
+
+@keyframes fade {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+h1 { font-size: 1.6rem; margin: 0 0 16px; }
+h2 { font-size: 1.15rem; margin: 0 0 12px; }
+
+.card {
+  background: var(--card);
+  border-radius: 14px;
+  padding: 16px;
+  margin-bottom: 16px;
+}
+
+.field { margin-bottom: 16px; }
+label { display: block; font-size: .85rem; color: var(--muted); margin-bottom: 6px; }
+
+input, select {
+  width: 100%;
+  padding: 12px 14px;
+  border-radius: 10px;
+  border: 1px solid #2c303a;
+  background: #12151a;
+  color: var(--text);
+  font-size: 1rem;
+  margin-bottom: 10px;
+}
+
+.btn {
+  width: 100%;
+  padding: 13px;
+  border-radius: 10px;
+  border: none;
+  background: #262a33;
+  color: var(--text);
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.btn.primary { background: var(--accent); color: #fff; }
+.btn.primary:active { background: var(--accent-dark); }
+.btn:disabled { opacity: .5; }
+
+.error { color: var(--wrong); min-height: 1.2em; font-size: .9rem; }
+.hint { color: var(--muted); font-size: .9rem; }
+
+.players-list, .leaderboard {
+  list-style: none;
+  padding: 0;
+  margin: 0 0 20px;
+}
+
+.players-list li, .leaderboard li {
+  background: var(--card);
+  padding: 12px 14px;
+  border-radius: 10px;
+  margin-bottom: 8px;
+  display: flex;
+  justify-content: space-between;
+}
+
+.leaderboard li .rank { color: var(--accent); font-weight: 700; margin-right: 8px; }
+
+.q-header {
+  display: flex;
+  justify-content: space-between;
+  color: var(--muted);
+  font-size: .9rem;
+  margin-bottom: 8px;
+}
+
+#q-timer { font-weight: 700; color: var(--accent); }
+
+.options {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  margin: 16px 0;
+}
+
+.opt-btn {
+  padding: 18px 10px;
+  border-radius: 12px;
+  border: none;
+  background: var(--card);
+  color: var(--text);
+  font-size: 1rem;
+  cursor: pointer;
+  min-height: 72px;
+}
+
+.opt-btn:active { background: var(--accent-dark); }
+.opt-btn.correct { background: var(--correct); color: #06210f; }
+.opt-btn.wrong { background: var(--wrong); color: #2a0505; }
+.opt-btn.disabled { opacity: .55; pointer-events: none; }
+
+#reveal-title { text-align: center; }
