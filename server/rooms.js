@@ -5,6 +5,7 @@ const QUESTION_TIME_MS = 12000; // short window: enough to know the answer, too 
 const REVEAL_TIME_MS = 4000;
 const FAST_ANSWER_MS = 1200; // correct answers faster than this are flagged as suspicious
 const SUDDEN_DEATH_MS = 5000; // once someone answers in multiplayer, everyone else gets this long
+const ANSWER_CONFIRM_DELAY_MS = 1500; // pause before reveal when everyone finishes early, so the last answer's own color has time to register
 
 function generateCode(existingCodes) {
   let code;
@@ -254,7 +255,7 @@ class Room {
 
     if (this.allAnswered()) {
       this.clearTimer();
-      this.revealAnswer();
+      this.timer = setTimeout(() => this.revealAnswer(), ANSWER_CONFIRM_DELAY_MS);
       return;
     }
 
