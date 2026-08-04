@@ -318,7 +318,13 @@ class Room {
     for (const p of this.players.values()) {
       if (p.isBot) continue;
       const correctIndex = p.optionMap ? p.optionMap.indexOf(q.correctIndex) : q.correctIndex;
-      this.sendTo(p.id, { type: 'question_end', correctIndex, leaderboard: board, roundResults });
+      this.sendTo(p.id, {
+        type: 'question_end',
+        correctIndex,
+        leaderboard: board,
+        roundResults,
+        revealTimeMs: REVEAL_TIME_MS,
+      });
     }
 
     this.timer = setTimeout(() => this.nextQuestion(), REVEAL_TIME_MS);

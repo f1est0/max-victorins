@@ -448,6 +448,18 @@
     $('reveal-title').textContent = 'Правильный ответ показан';
     renderRoundAnswers(msg.roundResults || []);
     renderLeaderboard('reveal-leaderboard', msg.leaderboard);
+
+    const revealDeadline = Date.now() + (msg.revealTimeMs || 4000);
+    function updateRevealCountdown() {
+      const left = Math.max(0, revealDeadline - Date.now());
+      const secs = Math.ceil(left / 1000);
+      $('reveal-wait').textContent = secs > 0
+        ? `Следующий вопрос через ${secs}с…`
+        : 'Следующий вопрос…';
+      if (left <= 0) clearInterval(timerInterval);
+    }
+    updateRevealCountdown();
+    timerInterval = setInterval(updateRevealCountdown, 200);
   }
 
   function renderRoundAnswers(roundResults) {
