@@ -6,7 +6,25 @@ const { WebSocketServer } = require('ws');
 const { RoomManager, QUESTION_TIME_MS } = require('./rooms');
 const { verifyInitData } = require('./auth');
 const store = require('./store');
-const { ADMIN_USER_IDS } = require('./env');
+const { sendMessage } = require('./botApi');
+const { ADMIN_USER_IDS, WEBHOOK_SECRET } = require('./env');
+
+const WELCOME_MESSAGE = `Привет! 👋 Это бот-викторина «Знариум».
+
+Внутри — мини-приложение с реалтайм-викторинами:
+🎮 Играйте один, против бота или с друзьями по коду комнаты
+📚 Выбирайте тему и количество вопросов — сейчас доступны разные разделы, вопросов становится всё больше
+🏆 В конце — результаты и поздравление победителю
+
+Чтобы начать, нажмите «Играть» внизу экрана.`;
+
+function handleBotUpdate(update) {
+  console.log('[bot webhook] update_type=', update && update.update_type, 'chat_id=', update && update.chat_id);
+  if (!update || !update.chat_id) return;
+  if (update.update_type === 'bot_started' || update.update_type === 'bot_added') {
+    sendMessage(update.chat_id, WELCOME_MESSAGE);
+  }
+}
 
 function isAdminId(id) {
   return id != null && ADMIN_USER_IDS.includes(String(id));
@@ -192,6 +210,21 @@ function serveStatic(req, res) {
 }
 
 const server = http.createServer((req, res) => {
+  if (req.method === 'POST' && WEBHOOK_SECRET && req.url === `/bot/webhook/${WEBHOOK_SECRET}`) {
+    let body = '';
+    req.on('data', (chunk) => { body += chunk; });
+    req.on('end', () => {
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end('{}');
+      try {
+        handleBotUpdate(JSON.parse(body));
+      } catch (e) {
+        console.error('[bot webhook] parse error', e.message);
+      }
+    });
+    return;
+  }
+
   if (req.url === '/api/packs') {
     const standalone = [];
     const categoriesById = new Map();

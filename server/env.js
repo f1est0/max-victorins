@@ -22,4 +22,5 @@ module.exports = {
     .split(',')
     .map((s) => s.trim())
     .filter(Boolean),
+  WEBHOOK_SECRET: env.WEBHOOK_SECRET || '',
 };
