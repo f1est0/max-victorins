@@ -55,6 +55,8 @@ html, body {
   padding: 20px;
 }
 
+.modal-overlay[hidden] { display: none; }
+
 .modal-box {
   background: var(--card);
   border-radius: 14px;
