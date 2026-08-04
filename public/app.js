@@ -43,6 +43,28 @@
     if (saved) nameInput.value = saved;
   }
 
+  // --- Gate: only playable when opened inside MAX with a verified profile ---
+  function showAccessBlocked() {
+    $('access-checking').hidden = true;
+    $('access-blocked').hidden = false;
+    $('play-area').hidden = true;
+  }
+
+  function showPlayArea() {
+    $('access-checking').hidden = true;
+    $('access-blocked').hidden = true;
+    $('play-area').hidden = false;
+  }
+
+  if (!MaxApp || !MaxApp.initData) {
+    showAccessBlocked();
+  } else {
+    // Waiting on the server to verify the signed initData (see 'auth_result' below).
+    setTimeout(() => {
+      if ($('access-checking').hidden === false) showAccessBlocked();
+    }, 8000);
+  }
+
   // --- WebSocket ---
   const proto = location.protocol === 'https:' ? 'wss:' : 'ws:';
   const ws = new WebSocket(proto + '//' + location.host + '/ws');
@@ -194,7 +216,10 @@
         break;
 
       case 'auth_result':
-        if (!msg.ok) break;
+        if (!msg.ok) {
+          showAccessBlocked();
+          break;
+        }
         if (msg.name) {
           nameInput.value = msg.name;
           nameInput.disabled = true;
@@ -203,6 +228,7 @@
           showScreen('banned');
           break;
         }
+        showPlayArea();
         if (msg.profile) {
           $('rating-display').hidden = false;
           $('rating-display').textContent = `Рейтинг: ${msg.profile.rating} · игр сыграно: ${msg.profile.gamesPlayed}`;

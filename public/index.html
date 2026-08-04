@@ -22,39 +22,47 @@
       <button id="btn-admin" class="admin-btn" hidden title="Админ-панель">⚙</button>
     </div>
     <p id="rating-display" class="hint" hidden></p>
-    <div class="field">
-      <label for="name-input">Ваше имя</label>
-      <input id="name-input" maxlength="24" placeholder="Игрок" />
+
+    <p id="access-checking" class="hint">Проверяем доступ…</p>
+    <div id="access-blocked" class="card" hidden>
+      <p>Это приложение работает только внутри Max. Откройте его через мини-приложение, а не напрямую по ссылке в браузере.</p>
     </div>
 
-    <div class="card">
-      <h2>Играть</h2>
-      <label for="topic-select">Тема</label>
-      <select id="topic-select"></select>
-
-      <div id="subtopic-wrap" hidden>
-        <label for="subtopic-select">Раздел</label>
-        <select id="subtopic-select"></select>
+    <div id="play-area" hidden>
+      <div class="field">
+        <label for="name-input">Ваше имя</label>
+        <input id="name-input" maxlength="24" placeholder="Игрок" />
       </div>
 
-      <label for="count-input">Количество вопросов</label>
-      <input id="count-input" type="number" min="1" value="10" />
+      <div class="card">
+        <h2>Играть</h2>
+        <label for="topic-select">Тема</label>
+        <select id="topic-select"></select>
 
-      <div class="btn-row">
-        <button id="btn-solo" class="btn">Одиночная игра</button>
-        <button id="btn-bot" class="btn">Против бота</button>
+        <div id="subtopic-wrap" hidden>
+          <label for="subtopic-select">Раздел</label>
+          <select id="subtopic-select"></select>
+        </div>
+
+        <label for="count-input">Количество вопросов</label>
+        <input id="count-input" type="number" min="1" value="10" />
+
+        <div class="btn-row">
+          <button id="btn-solo" class="btn">Одиночная игра</button>
+          <button id="btn-bot" class="btn">Против бота</button>
+        </div>
+        <button id="btn-create" class="btn primary">Создать комнату (мультиплеер)</button>
       </div>
-      <button id="btn-create" class="btn primary">Создать комнату (мультиплеер)</button>
-    </div>
 
-    <div class="card">
-      <h2>Присоединиться</h2>
-      <input id="code-input" maxlength="5" placeholder="КОД КОМНАТЫ" style="text-transform:uppercase" />
-      <button id="btn-join" class="btn">Войти по коду</button>
-    </div>
+      <div class="card">
+        <h2>Присоединиться</h2>
+        <input id="code-input" maxlength="5" placeholder="КОД КОМНАТЫ" style="text-transform:uppercase" />
+        <button id="btn-join" class="btn">Войти по коду</button>
+      </div>
 
-    <p id="home-error" class="error"></p>
-    <button id="btn-support" class="btn support-btn">💬 Связаться с поддержкой</button>
+      <p id="home-error" class="error"></p>
+      <button id="btn-support" class="btn support-btn">💬 Связаться с поддержкой</button>
+    </div>
   </section>
 
   <section id="screen-lobby" class="screen">

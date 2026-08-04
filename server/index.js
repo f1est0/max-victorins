@@ -317,7 +317,11 @@ wss.on('connection', (ws) => {
       }
 
       case 'create_room': {
-        if (authedProfile && authedProfile.banned) {
+        if (!authedProfile) {
+          ws.send(JSON.stringify({ type: 'error', message: 'Доступно только через приложение Max' }));
+          return;
+        }
+        if (authedProfile.banned) {
           ws.send(JSON.stringify({ type: 'error', message: 'Вы забанены и не можете играть' }));
           return;
         }
@@ -344,7 +348,11 @@ wss.on('connection', (ws) => {
       }
 
       case 'join_room': {
-        if (authedProfile && authedProfile.banned) {
+        if (!authedProfile) {
+          ws.send(JSON.stringify({ type: 'error', message: 'Доступно только через приложение Max' }));
+          return;
+        }
+        if (authedProfile.banned) {
           ws.send(JSON.stringify({ type: 'error', message: 'Вы забанены и не можете играть' }));
           return;
         }
