@@ -215,6 +215,7 @@
         gameMode = msg.mode || 'multiplayer';
         if (msg.state === 'lobby') {
           $('lobby-code').textContent = roomCode;
+          $('lobby-topic').textContent = `Тема: ${msg.packTitle} · вопросов: ${msg.questionCount}`;
           renderPlayers(msg.players);
           showScreen('lobby');
         } else if (msg.state === 'question' && msg.current) {
@@ -266,6 +267,7 @@
         gameMode = msg.mode || 'multiplayer';
         if (gameMode === 'multiplayer') {
           $('lobby-code').textContent = roomCode;
+          $('lobby-topic').textContent = `Тема: ${msg.packTitle} · вопросов: ${msg.questionCount}`;
           renderPlayers(msg.players);
           showScreen('lobby');
         }

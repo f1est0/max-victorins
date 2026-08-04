@@ -300,6 +300,8 @@ wss.on('connection', (ws) => {
           mode: room.mode,
           isHost: room.hostId === clientId,
           state: room.state,
+          packTitle: room.pack.title,
+          questionCount: room.pack.questions.length,
           players: room.playersList(),
           leaderboard: room.leaderboard(),
         };
@@ -359,6 +361,8 @@ wss.on('connection', (ws) => {
           code: currentRoom.code,
           isHost: true,
           mode,
+          packTitle: pack.title,
+          questionCount: pack.questions.length,
           players: currentRoom.playersList(),
         }));
         if (mode !== 'multiplayer') currentRoom.startGame();
@@ -391,6 +395,8 @@ wss.on('connection', (ws) => {
           code: room.code,
           isHost: false,
           mode: room.mode,
+          packTitle: room.pack.title,
+          questionCount: room.pack.questions.length,
           players: room.playersList(),
         }));
         room.broadcast({ type: 'room_update', players: room.playersList() }, clientId);
