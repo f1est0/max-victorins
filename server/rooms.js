@@ -37,7 +37,7 @@ const BOT_NAME = 'Бот';
 
 // Bot difficulty: 1 (easy) .. 5 (very hard) — change this one number to retune the bot.
 // Higher difficulty means it answers correctly more often AND reacts faster.
-const BOT_DIFFICULTY = 4;
+const BOT_DIFFICULTY = 3;
 const BOT_DIFFICULTY_SETTINGS = {
   1: { accuracy: 0.40, minDelayMs: 3000, maxDelayMs: 11000 },
   2: { accuracy: 0.55, minDelayMs: 2500, maxDelayMs: 10000 },
