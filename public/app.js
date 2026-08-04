@@ -14,10 +14,12 @@
   // --- DOM helpers ---
   const $ = (id) => document.getElementById(id);
   const screens = ['home', 'lobby', 'question', 'reveal', 'final'];
+  const ABORTABLE_SCREENS = ['lobby', 'question', 'reveal'];
   function showScreen(name) {
     for (const s of screens) {
       $('screen-' + s).classList.toggle('active', s === name);
     }
+    $('btn-abort').hidden = !ABORTABLE_SCREENS.includes(name);
   }
 
   const nameInput = $('name-input');
@@ -283,6 +285,22 @@
   });
 
   $('btn-restart').addEventListener('click', () => {
+    location.reload();
+  });
+
+  // --- Abort quiz ---
+  $('btn-abort').addEventListener('click', () => {
+    $('confirm-text').textContent = gameMode === 'multiplayer'
+      ? 'Вы точно хотите прервать викторину? Рейтинг понизится.'
+      : 'Вы точно хотите прервать викторину?';
+    $('confirm-modal').hidden = false;
+  });
+
+  $('btn-confirm-cancel').addEventListener('click', () => {
+    $('confirm-modal').hidden = true;
+  });
+
+  $('btn-confirm-abort').addEventListener('click', () => {
     location.reload();
   });
 })();

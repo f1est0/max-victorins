@@ -30,6 +30,49 @@ html, body {
 .screen { display: none; }
 .screen.active { display: block; animation: fade .2s ease; }
 
+.abort-btn {
+  position: fixed;
+  top: 14px;
+  right: max(14px, calc((100vw - 480px) / 2 + 14px));
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid #2c303a;
+  color: var(--muted);
+  font-size: .78rem;
+  padding: 6px 12px;
+  border-radius: 20px;
+  cursor: pointer;
+  z-index: 20;
+}
+
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.6);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 30;
+  padding: 20px;
+}
+
+.modal-box {
+  background: var(--card);
+  border-radius: 14px;
+  padding: 20px;
+  max-width: 320px;
+  width: 100%;
+  text-align: center;
+}
+
+.modal-actions {
+  display: flex;
+  gap: 10px;
+  margin-top: 16px;
+}
+
+.modal-actions .btn { margin-bottom: 0; }
+.btn.danger { background: var(--wrong); color: #fff; }
+
 @keyframes fade {
   from { opacity: 0; transform: translateY(6px); }
   to { opacity: 1; transform: translateY(0); }
