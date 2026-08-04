@@ -203,6 +203,19 @@ h2 { font-size: 1.15rem; margin: 0 0 12px; }
   color: var(--text);
   margin: 0 0 20px;
 }
+
+.announcement {
+  background: linear-gradient(135deg, var(--accent), var(--accent-dark));
+  color: #fff;
+  border-radius: 14px;
+  padding: 14px 16px;
+  margin-bottom: 20px;
+  font-size: .92rem;
+  font-weight: 600;
+  text-align: center;
+  line-height: 1.4;
+}
+
 label { display: block; font-size: .85rem; color: var(--muted); margin-bottom: 6px; }
 
 input, select {
