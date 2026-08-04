@@ -4,6 +4,7 @@ const CODE_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; // no 0/O/1/I
 const QUESTION_TIME_MS = 12000; // short window: enough to know the answer, too tight to google it
 const REVEAL_TIME_MS = 4000;
 const FAST_ANSWER_MS = 1200; // correct answers faster than this are flagged as suspicious
+const SUDDEN_DEATH_MS = 5000; // once someone answers in multiplayer, everyone else gets this long
 
 function generateCode(existingCodes) {
   let code;
@@ -42,6 +43,7 @@ class Room {
     this.timer = null;
     this.botTimer = null;
     this.questionStartedAt = 0;
+    this.firstAnswerReceived = false;
   }
 
   addPlayer(id, name, ws) {
@@ -56,6 +58,8 @@ class Room {
       distractions: 0,
       distractedThisQuestion: false,
       fastCorrectCount: 0,
+      roundScoreDelta: 0,
+      lastAnswerActualIndex: null,
     });
   }
 
@@ -71,6 +75,8 @@ class Room {
       distractions: 0,
       distractedThisQuestion: false,
       fastCorrectCount: 0,
+      roundScoreDelta: 0,
+      lastAnswerActualIndex: null,
     });
   }
 
@@ -156,12 +162,15 @@ class Room {
 
     this.state = 'question';
     this.questionStartedAt = Date.now();
+    this.firstAnswerReceived = false;
 
     const q = this.currentQuestion();
 
     for (const p of this.players.values()) {
       p.answered = null;
       p.distractedThisQuestion = false;
+      p.roundScoreDelta = 0;
+      p.lastAnswerActualIndex = null;
       if (p.isBot) {
         p.optionMap = null;
         continue;
@@ -228,13 +237,17 @@ class Room {
 
     p.answered = optionIndex;
     p.score += scoreDelta;
+    p.roundScoreDelta = scoreDelta;
+    p.lastAnswerActualIndex = actualIndex;
     if (correct && elapsed < FAST_ANSWER_MS) p.fastCorrectCount += 1;
 
+    const correctIndexForPlayer = p.optionMap ? p.optionMap.indexOf(q.correctIndex) : q.correctIndex;
     this.sendTo(id, {
       type: 'answer_result',
       correct,
       scoreDelta,
       totalScore: p.score,
+      correctIndex: correctIndexForPlayer,
     });
 
     this.broadcast({ type: 'player_answered', playerId: id });
@@ -242,6 +255,24 @@ class Room {
     if (this.allAnswered()) {
       this.clearTimer();
       this.revealAnswer();
+      return;
+    }
+
+    // Sudden death: once anyone answers in a multiplayer room, cap everyone
+    // else's remaining time so they can't wander off to look the answer up.
+    if (this.mode === 'multiplayer' && !p.isBot && !this.firstAnswerReceived) {
+      this.firstAnswerReceived = true;
+      const remainingOriginal = QUESTION_TIME_MS - elapsed;
+      const newRemaining = Math.min(remainingOriginal, SUDDEN_DEATH_MS);
+      if (newRemaining < remainingOriginal && newRemaining > 0) {
+        clearTimeout(this.timer);
+        this.timer = setTimeout(() => this.revealAnswer(), newRemaining);
+        for (const pl of this.players.values()) {
+          if (pl.answered === null && !pl.isBot) {
+            this.sendTo(pl.id, { type: 'time_pressure', remainingMs: newRemaining });
+          }
+        }
+      }
     }
   }
 
@@ -251,11 +282,18 @@ class Room {
     this.state = 'reveal';
     const q = this.currentQuestion();
     const board = this.leaderboard();
+    const roundResults = Array.from(this.players.values()).map((p) => ({
+      id: p.id,
+      name: p.name,
+      answerText: p.lastAnswerActualIndex != null ? q.options[p.lastAnswerActualIndex] : null,
+      correct: p.lastAnswerActualIndex === q.correctIndex,
+      scoreDelta: p.roundScoreDelta,
+    }));
 
     for (const p of this.players.values()) {
       if (p.isBot) continue;
       const correctIndex = p.optionMap ? p.optionMap.indexOf(q.correctIndex) : q.correctIndex;
-      this.sendTo(p.id, { type: 'question_end', correctIndex, leaderboard: board });
+      this.sendTo(p.id, { type: 'question_end', correctIndex, leaderboard: board, roundResults });
     }
 
     this.timer = setTimeout(() => this.nextQuestion(), REVEAL_TIME_MS);

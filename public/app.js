@@ -107,6 +107,12 @@
         markOwnAnswer(msg);
         break;
 
+      case 'time_pressure':
+        questionDeadline = Date.now() + msg.remainingMs;
+        $('q-timer').classList.add('urgent');
+        $('q-status').textContent = $('q-status').textContent || 'Соперник ответил! Осталось меньше времени';
+        break;
+
       case 'question_end':
         renderReveal(msg);
         showScreen('reveal');
@@ -140,6 +146,7 @@
     currentOptionIndex = null;
     onQuestionScreen = true;
     distractionReported = false;
+    $('q-timer').classList.remove('urgent');
     const modeSuffix = gameMode === 'bot' ? ' · против бота' : gameMode === 'solo' ? ' · одиночная' : '';
     $('q-progress').textContent = `Вопрос ${q.index + 1} из ${q.total}${modeSuffix}`;
     $('q-text').textContent = q.text;
@@ -180,6 +187,12 @@
     $('q-status').textContent = res.correct
       ? `Верно! +${res.scoreDelta} очков`
       : 'Неверно';
+
+    const buttons = document.querySelectorAll('#q-options .opt-btn');
+    buttons.forEach((b, i) => {
+      if (i === res.correctIndex) b.classList.add('correct');
+      else if (i === currentOptionIndex) b.classList.add('wrong');
+    });
   }
 
   function renderReveal(msg) {
@@ -192,7 +205,20 @@
     });
 
     $('reveal-title').textContent = 'Правильный ответ показан';
+    renderRoundAnswers(msg.roundResults || []);
     renderLeaderboard('reveal-leaderboard', msg.leaderboard);
+  }
+
+  function renderRoundAnswers(roundResults) {
+    const ul = $('reveal-answers');
+    ul.innerHTML = '';
+    for (const r of roundResults) {
+      const li = document.createElement('li');
+      const answerText = r.answerText || 'не ответил';
+      const sign = r.scoreDelta > 0 ? '+' : '';
+      li.innerHTML = `<span>${r.name}</span><span class="${r.correct ? 'answer-correct' : 'answer-wrong'}">${answerText} (${sign}${r.scoreDelta})</span>`;
+      ul.appendChild(li);
+    }
   }
 
   function renderFinal(leaderboard) {
