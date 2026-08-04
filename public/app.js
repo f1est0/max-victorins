@@ -2,13 +2,16 @@
   'use strict';
 
   const SUPPORT_PROFILE_URL = 'https://max.ru/u/f9LHodD0cOKZMBqCkQNDf8u-l0fg-_Qrqho9o_1VUQxSQReqL5dyAxN0luM';
+  const BOT_USERNAME = 'id503303295000_bot';
 
   // --- MAX Bridge integration (safe no-ops if not running inside MAX) ---
   const MaxApp = window.WebApp || null;
   let maxUser = null;
+  let startParam = null;
   try {
     if (MaxApp && typeof MaxApp.ready === 'function') MaxApp.ready();
     maxUser = MaxApp && MaxApp.initDataUnsafe && MaxApp.initDataUnsafe.user;
+    startParam = (MaxApp && MaxApp.initDataUnsafe && MaxApp.initDataUnsafe.start_param) || null;
   } catch (e) {
     console.warn('MAX Bridge not available:', e);
   }
@@ -76,6 +79,8 @@
   let questionDeadline = 0;
   let timerInterval = null;
   let lastPlayerCount = 0;
+  let resumedIntoRoom = false; // set by 'resumed' — blocks the start_param auto-join from stealing an existing session
+  let joinedViaStartParam = false;
 
   function send(msg) {
     if (ws.readyState === WebSocket.OPEN) ws.send(JSON.stringify(msg));
@@ -210,6 +215,7 @@
   function handleMessage(msg) {
     switch (msg.type) {
       case 'resumed':
+        resumedIntoRoom = true;
         isHost = msg.isHost;
         roomCode = msg.code;
         gameMode = msg.mode || 'multiplayer';
@@ -254,6 +260,13 @@
         }
         if (msg.isAdmin) {
           $('btn-admin').hidden = false;
+        }
+        // Opened via an invite link (?startapp=CODE) — join that room straight away
+        // instead of making them type the code in by hand.
+        if (startParam && !joinedViaStartParam && !resumedIntoRoom && /^[A-Za-z0-9]{5}$/.test(startParam)) {
+          joinedViaStartParam = true;
+          const name = (nameInput.value || 'Игрок').trim().slice(0, 24);
+          send({ type: 'join_room', name, code: startParam.toUpperCase() });
         }
         break;
 
@@ -664,19 +677,22 @@
   // --- Invite a friend via MAX's native share sheet ---
   $('btn-share').addEventListener('click', () => {
     const text = `Присоединяйся к моей викторине в Max! Код комнаты: ${roomCode}`;
+    // Deep link with ?startapp= opens the mini-app straight into this room —
+    // the code arrives in initDataUnsafe.start_param, no need to type it in.
+    const inviteLink = `https://max.ru/${BOT_USERNAME}?startapp=${roomCode}`;
     try {
       if (MaxApp && typeof MaxApp.shareMaxContent === 'function') {
-        MaxApp.shareMaxContent({ text, link: location.origin });
+        MaxApp.shareMaxContent({ text, link: inviteLink });
         return;
       }
       if (MaxApp && typeof MaxApp.shareContent === 'function') {
-        MaxApp.shareContent({ text, link: location.origin });
+        MaxApp.shareContent({ text, link: inviteLink });
         return;
       }
     } catch (e) {
       console.warn('Share failed:', e);
     }
     // Outside MAX (plain browser testing) — just copy the invite text instead.
-    navigator.clipboard?.writeText(`${text} ${location.origin}`).catch(() => {});
+    navigator.clipboard?.writeText(`${text} ${inviteLink}`).catch(() => {});
   });
 })();
