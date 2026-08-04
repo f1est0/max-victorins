@@ -1,12 +1,12 @@
 const crypto = require('crypto');
 const { BOT_TOKEN } = require('./env');
 
-// Per MAX Bridge docs: build a data-check-string from all initData fields
-// (except hash), sorted alphabetically as "key=value" joined by "\n", then
-// HMAC-SHA256 it using the bot token as the secret key.
-// The docs only give a worked example for phone verification, not the full
-// launch-data algorithm, so this is a best-effort implementation pending
-// confirmation against a real signed payload from inside MAX.
+// Build a data-check-string from all initData fields (except hash), sorted
+// alphabetically as "key=value" joined by "\n", then HMAC-SHA256 it with a
+// derived secret key (same scheme as Telegram Mini Apps):
+//   secretKey = HMAC_SHA256("WebAppData", botToken)
+//   hash = HMAC_SHA256(secretKey, dataCheckString)
+// Confirmed against a real signed payload captured from inside MAX.
 function verifyInitData(initData) {
   if (!initData || !BOT_TOKEN) return { ok: false, reason: 'missing_data_or_token' };
 
@@ -28,8 +28,9 @@ function verifyInitData(initData) {
   pairs.sort();
   const dataCheckString = pairs.join('\n');
 
+  const secretKey = crypto.createHmac('sha256', 'WebAppData').update(BOT_TOKEN).digest();
   const computedHash = crypto
-    .createHmac('sha256', BOT_TOKEN)
+    .createHmac('sha256', secretKey)
     .update(dataCheckString)
     .digest('hex');
 
