@@ -16,6 +16,15 @@ function isAdminId(id) {
 // intentional leaves ("Назад" / confirmed "Прервать"), as opposed to a socket
 // just dropping, which gets a reconnect window instead.
 function removeFromRoomNow(rooms, room, clientId, profile) {
+  if (room.hostId === clientId) {
+    // The host leaving strands everyone else in an unwinnable "waiting for
+    // host" state — close the whole room for everyone instead.
+    room.clearTimer();
+    room.broadcast({ type: 'room_closed', reason: 'host_left' }, clientId);
+    rooms.delete(room.code);
+    return;
+  }
+
   const wasInProgress =
     room.mode === 'matchmaking' && (room.state === 'question' || room.state === 'reveal');
   room.removePlayer(clientId);

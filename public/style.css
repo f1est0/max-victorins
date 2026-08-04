@@ -71,6 +71,17 @@ html, body {
   vertical-align: middle;
 }
 
+.close-lobby-btn {
+  background: transparent;
+  border: 1px solid var(--wrong);
+  color: var(--wrong);
+  font-size: .78rem;
+  padding: 4px 10px;
+  border-radius: 20px;
+  cursor: pointer;
+  vertical-align: middle;
+}
+
 .modal-overlay {
   position: fixed;
   inset: 0;

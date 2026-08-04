@@ -23,7 +23,8 @@
       $('screen-' + s).classList.toggle('active', s === name);
     }
     $('btn-abort').hidden = !ABORTABLE_SCREENS.includes(name);
-    $('btn-back').hidden = !BACK_SCREENS.includes(name);
+    $('btn-back').hidden = !(BACK_SCREENS.includes(name) && !isHost);
+    $('btn-close-lobby').hidden = !(name === 'lobby' && isHost);
   }
 
   // --- Persistent session id, so a reload/reconnect can resume the same game ---
@@ -51,6 +52,7 @@
   let gameMode = 'multiplayer';
   let questionDeadline = 0;
   let timerInterval = null;
+  let lastPlayerCount = 0;
 
   function send(msg) {
     if (ws.readyState === WebSocket.OPEN) ws.send(JSON.stringify(msg));
@@ -149,6 +151,13 @@
         renderPlayers(msg.players);
         break;
 
+      case 'room_closed':
+        showScreen('home');
+        $('home-error').textContent = msg.reason === 'host_left'
+          ? 'Хост закрыл комнату'
+          : 'Комната закрыта';
+        break;
+
       case 'error':
         $('home-error').textContent = msg.message;
         $('lobby-error').textContent = msg.message;
@@ -202,6 +211,7 @@
   }
 
   function updateLobbyControls(playerCount) {
+    lastPlayerCount = playerCount;
     const enoughPlayers = gameMode !== 'multiplayer' || playerCount >= 2;
     $('btn-start').hidden = !(isHost && enoughPlayers);
     $('lobby-wait').hidden = isHost && enoughPlayers;
@@ -382,23 +392,6 @@
     send({ type: 'start_game' });
   });
 
-  $('btn-restart').addEventListener('click', () => {
-    send({ type: 'leave_room' });
-    setTimeout(() => location.reload(), 80);
-  });
-
-  // --- Abort quiz ---
-  $('btn-abort').addEventListener('click', () => {
-    $('confirm-text').textContent = gameMode === 'matchmaking'
-      ? 'Вы точно хотите прервать викторину? Рейтинг понизится.'
-      : 'Вы точно хотите прервать викторину?';
-    $('confirm-modal').hidden = false;
-  });
-
-  $('btn-confirm-cancel').addEventListener('click', () => {
-    $('confirm-modal').hidden = true;
-  });
-
   function leaveAndReload() {
     // Tell the server this is a deliberate exit, not a dropped connection —
     // otherwise the reconnect logic would resume us right back into the room.
@@ -406,9 +399,41 @@
     setTimeout(() => location.reload(), 80);
   }
 
+  function openConfirm(text, confirmLabel) {
+    $('confirm-text').textContent = text;
+    $('btn-confirm-abort').textContent = confirmLabel;
+    $('confirm-modal').hidden = false;
+  }
+
+  $('btn-restart').addEventListener('click', leaveAndReload);
+
+  // --- Abort quiz (mid-game) ---
+  $('btn-abort').addEventListener('click', () => {
+    openConfirm(
+      gameMode === 'matchmaking'
+        ? 'Вы точно хотите прервать викторину? Рейтинг понизится.'
+        : 'Вы точно хотите прервать викторину?',
+      'Прервать'
+    );
+  });
+
+  // --- Close lobby (host only) — closes the room for everyone, so use a confirmation ---
+  $('btn-close-lobby').addEventListener('click', () => {
+    openConfirm(
+      lastPlayerCount > 1
+        ? 'Закрыть лобби? Все игроки будут отключены от комнаты.'
+        : 'Закрыть лобби?',
+      'Закрыть'
+    );
+  });
+
+  $('btn-confirm-cancel').addEventListener('click', () => {
+    $('confirm-modal').hidden = true;
+  });
+
   $('btn-confirm-abort').addEventListener('click', leaveAndReload);
 
-  // --- Leave lobby before the game has started: no confirmation needed ---
+  // --- Leave lobby before the game has started (guest, no confirmation needed) ---
   $('btn-back').addEventListener('click', leaveAndReload);
 
   // --- Support: open the admin's MAX profile so people can message them ---
