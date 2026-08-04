@@ -1,6 +1,8 @@
 const crypto = require('crypto');
 const { BOT_TOKEN } = require('./env');
 
+const MAX_AUTH_AGE_SEC = 24 * 60 * 60; // reject initData older than this — limits replay of a leaked/logged string
+
 // Build a data-check-string from all initData fields (except hash), sorted
 // alphabetically as "key=value" joined by "\n", then HMAC-SHA256 it with a
 // derived secret key (same scheme as Telegram Mini Apps):
@@ -45,6 +47,12 @@ function verifyInitData(initData) {
       receivedHash,
     });
     return { ok: false, reason: 'bad_hash' };
+  }
+
+  const authDate = Number(params.get('auth_date'));
+  const nowSec = Math.floor(Date.now() / 1000);
+  if (!authDate || Math.abs(nowSec - authDate) > MAX_AUTH_AGE_SEC) {
+    return { ok: false, reason: 'expired' };
   }
 
   let user = null;

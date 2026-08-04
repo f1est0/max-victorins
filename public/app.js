@@ -287,6 +287,7 @@
       case 'error':
         $('home-error').textContent = msg.message;
         $('lobby-error').textContent = msg.message;
+        setRoomButtonsDisabled(false);
         break;
 
       case 'game_started':
@@ -523,10 +524,19 @@
   window.addEventListener('blur', reportDistractionIfNeeded);
 
   // --- Home screen actions ---
+  // Guards against a fast double-click sending two create/join requests before
+  // the first response comes back (which would otherwise leave an orphaned
+  // room on the server).
+  const roomActionButtons = ['btn-create', 'btn-solo', 'btn-bot', 'btn-join'].map($);
+  function setRoomButtonsDisabled(disabled) {
+    roomActionButtons.forEach((b) => { b.disabled = disabled; });
+  }
+
   function createRoom(mode) {
     const name = (nameInput.value || 'Игрок').trim().slice(0, 24);
     localStorage.setItem('quiz_name', name);
     $('home-error').textContent = '';
+    setRoomButtonsDisabled(true);
     send({ type: 'create_room', name, selection: buildSelection(), mode });
   }
 
@@ -543,6 +553,7 @@
     }
     localStorage.setItem('quiz_name', name);
     $('home-error').textContent = '';
+    setRoomButtonsDisabled(true);
     send({ type: 'join_room', name, code });
   });
 

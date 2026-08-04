@@ -271,6 +271,20 @@ wss.on('connection', (ws) => {
     currentRoom = null;
   };
 
+  // Explicit, immediate leave (no grace period) — used when a player deliberately
+  // exits, or when create_room/join_room needs to vacate a stale room first so a
+  // stray double-click can't leave an orphaned room behind.
+  const leaveRoomNow = () => {
+    if (!currentRoom) return;
+    const player = currentRoom.players.get(clientId);
+    if (player && player.disconnectTimer) {
+      clearTimeout(player.disconnectTimer);
+      player.disconnectTimer = null;
+    }
+    removeFromRoomNow(rooms, currentRoom, clientId, authedProfile);
+    currentRoom = null;
+  };
+
   ws.on('message', (raw) => {
     let msg;
     try {
@@ -350,6 +364,7 @@ wss.on('connection', (ws) => {
           ws.send(JSON.stringify({ type: 'error', message: 'Пакет вопросов не найден' }));
           return;
         }
+        leaveRoomNow(); // in case this connection was already sitting in another room
         const mode = ['solo', 'bot'].includes(msg.mode) ? msg.mode : 'multiplayer';
         const name = resolveName(authedProfile, msg.name, 'Хост');
         currentRoom = rooms.create(clientId, pack, mode);
@@ -388,6 +403,7 @@ wss.on('connection', (ws) => {
           return;
         }
         const name = resolveName(authedProfile, msg.name, 'Игрок');
+        if (room !== currentRoom) leaveRoomNow(); // vacate any other room first; re-joining the same one is a no-op
         currentRoom = room;
         room.addPlayer(clientId, name, ws, authedProfile ? authedProfile.id : null);
         ws.send(JSON.stringify({
@@ -405,7 +421,6 @@ wss.on('connection', (ws) => {
 
       case 'start_game': {
         if (!currentRoom || currentRoom.hostId !== clientId) return;
-        if (currentRoom.players.size < 1) return;
         if (currentRoom.mode === 'multiplayer' && currentRoom.players.size < 2) {
           ws.send(JSON.stringify({ type: 'error', message: 'Нужно минимум 2 игрока, чтобы начать' }));
           return;
@@ -427,14 +442,7 @@ wss.on('connection', (ws) => {
       }
 
       case 'leave_room': {
-        if (!currentRoom) return;
-        const player = currentRoom.players.get(clientId);
-        if (player && player.disconnectTimer) {
-          clearTimeout(player.disconnectTimer);
-          player.disconnectTimer = null;
-        }
-        removeFromRoomNow(rooms, currentRoom, clientId, authedProfile);
-        currentRoom = null;
+        leaveRoomNow();
         break;
       }
 

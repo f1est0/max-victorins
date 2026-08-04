@@ -20,7 +20,11 @@ function load() {
 
 function save() {
   if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true });
-  fs.writeFileSync(DATA_FILE, JSON.stringify(users, null, 2));
+  // Write to a temp file and rename over the original — rename is atomic on
+  // POSIX, so a crash mid-write can never leave users.json half-written/corrupt.
+  const tmpFile = `${DATA_FILE}.${process.pid}.tmp`;
+  fs.writeFileSync(tmpFile, JSON.stringify(users, null, 2));
+  fs.renameSync(tmpFile, DATA_FILE);
 }
 
 load();
