@@ -425,9 +425,7 @@
   }
 
   function markOwnAnswer(res) {
-    $('q-status').textContent = res.correct
-      ? `Верно! +${res.scoreDelta} очков`
-      : 'Неверно';
+    $('q-status').textContent = res.correct ? 'Верно!' : 'Неверно';
 
     const buttons = document.querySelectorAll('#q-options .opt-btn');
     buttons.forEach((b, i) => {
@@ -468,8 +466,7 @@
     for (const r of roundResults) {
       const li = document.createElement('li');
       const answerText = r.answerText || 'не ответил';
-      const sign = r.scoreDelta > 0 ? '+' : '';
-      li.innerHTML = `<span>${r.name}</span><span class="${r.correct ? 'answer-correct' : 'answer-wrong'}">${answerText} (${sign}${r.scoreDelta})</span>`;
+      li.innerHTML = `<span>${r.name}</span><span class="${r.correct ? 'answer-correct' : 'answer-wrong'}">${answerText}</span>`;
       ul.appendChild(li);
     }
   }
@@ -477,6 +474,16 @@
   function renderFinal(leaderboard) {
     onQuestionScreen = false;
     renderLeaderboard('final-leaderboard', leaderboard);
+
+    const winnerEl = $('final-winner');
+    if (!leaderboard.length) {
+      winnerEl.textContent = '';
+    } else if (leaderboard.length > 1 && leaderboard[0].score === leaderboard[1].score) {
+      const tied = leaderboard.filter((p) => p.score === leaderboard[0].score).map((p) => p.name);
+      winnerEl.textContent = `🤝 Ничья: ${tied.join(', ')}`;
+    } else {
+      winnerEl.textContent = `🏆 Победитель: ${leaderboard[0].name}`;
+    }
   }
 
   function renderLeaderboard(elId, leaderboard) {

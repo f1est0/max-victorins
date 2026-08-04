@@ -255,10 +255,9 @@ class Room {
 
     const q = this.currentQuestion();
     const elapsed = Date.now() - this.questionStartedAt;
-    const timeLeftRatio = Math.max(0, 1 - elapsed / QUESTION_TIME_MS);
     const actualIndex = p.optionMap ? p.optionMap[optionIndex] : optionIndex;
     const correct = actualIndex === q.correctIndex;
-    const scoreDelta = correct ? Math.round(500 + 500 * timeLeftRatio) : 0;
+    const scoreDelta = correct ? 1 : 0; // one point per correct answer — this isn't a rated match, just count right answers
 
     p.answered = optionIndex;
     p.score += scoreDelta;

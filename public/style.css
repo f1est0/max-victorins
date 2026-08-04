@@ -144,6 +144,13 @@ h2 { font-size: 1.15rem; margin: 0 0 12px; }
 
 .field { margin-bottom: 16px; }
 .centered { text-align: center; }
+
+.final-winner {
+  font-size: 1.2rem;
+  font-weight: 700;
+  color: var(--text);
+  margin: 0 0 20px;
+}
 label { display: block; font-size: .85rem; color: var(--muted); margin-bottom: 6px; }
 
 input, select {
