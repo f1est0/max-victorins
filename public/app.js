@@ -443,7 +443,7 @@
       else if (i === currentOptionIndex) b.classList.add('wrong');
     });
 
-    $('reveal-title').textContent = 'Правильный ответ показан';
+    $('reveal-title').textContent = 'Правильный ответ дали';
     renderRoundAnswers(msg.roundResults || []);
     renderLeaderboard('reveal-leaderboard', msg.leaderboard);
 
