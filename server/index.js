@@ -67,9 +67,25 @@ function removeFromRoomNow(rooms, room, clientId, profile) {
   }
 }
 
-// Rating only applies to matchmade games (not yet built), not bot/solo/private
-// code-based rooms with friends — those stay purely for fun, no ELO on the line.
+// The general rating only applies to matchmade games (not yet built), not
+// solo/private code-based rooms with friends — those stay purely for fun.
+// Bot games get their own separate leaderboard/rating (see below), since
+// beating a fixed-difficulty bot means something different from beating a
+// real ranked opponent.
 function handleGameOver(mode, results) {
+  if (mode === 'bot') {
+    const human = results.find((r) => !r.isBot);
+    const botEntry = results.find((r) => r.isBot);
+    if (human && human.maxUserId && botEntry) {
+      let score;
+      if (human.score > botEntry.score) score = 1;
+      else if (human.score < botEntry.score) score = 0;
+      else score = 0.5;
+      store.applyBotResult(human.maxUserId, score);
+    }
+    return;
+  }
+
   if (mode !== 'matchmaking') return;
   const ranked = results.filter((r) => !r.isBot && r.maxUserId);
   for (let i = 0; i < ranked.length; i++) {
@@ -477,6 +493,12 @@ wss.on('connection', (ws) => {
 
       case 'leave_room': {
         leaveRoomNow();
+        break;
+      }
+
+      case 'get_bot_leaderboard': {
+        if (!authedProfile) return;
+        ws.send(JSON.stringify({ type: 'bot_leaderboard', entries: store.listBotLeaderboard() }));
         break;
       }
 

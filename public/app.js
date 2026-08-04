@@ -18,7 +18,7 @@
 
   // --- DOM helpers ---
   const $ = (id) => document.getElementById(id);
-  const screens = ['home', 'lobby', 'question', 'reveal', 'final', 'banned', 'admin'];
+  const screens = ['home', 'lobby', 'question', 'reveal', 'final', 'banned', 'admin', 'ratings'];
   const ABORTABLE_SCREENS = ['question', 'reveal'];
   const BACK_SCREENS = ['lobby'];
   function showScreen(name) {
@@ -280,6 +280,10 @@
 
       case 'admin_users':
         renderAdminUsers(msg.users);
+        break;
+
+      case 'bot_leaderboard':
+        renderBotLeaderboard(msg.entries);
         break;
 
       case 'room_created':
@@ -544,6 +548,34 @@
       ul.appendChild(li);
     }
   }
+
+  function renderBotLeaderboard(entries) {
+    const ol = $('bot-leaderboard');
+    ol.innerHTML = '';
+    $('bot-leaderboard-empty').hidden = entries.length > 0;
+    entries.forEach((e, i) => {
+      const li = document.createElement('li');
+      li.innerHTML = `<span><span class="rank">${i + 1}.</span>${e.name}</span><span>${e.rating} (${e.wins}W/${e.losses}L)</span>`;
+      ol.appendChild(li);
+    });
+  }
+
+  function switchRatingsTab(tab) {
+    document.querySelectorAll('.tab-btn').forEach((b) => b.classList.toggle('active', b.dataset.tab === tab));
+    document.querySelectorAll('.tab-content').forEach((c) => { c.hidden = c.id !== `tab-${tab}`; });
+    if (tab === 'bot') send({ type: 'get_bot_leaderboard' });
+  }
+
+  document.querySelectorAll('.tab-btn').forEach((b) => {
+    b.addEventListener('click', () => switchRatingsTab(b.dataset.tab));
+  });
+
+  $('btn-ratings').addEventListener('click', () => {
+    showScreen('ratings');
+    switchRatingsTab('bot');
+  });
+
+  $('btn-ratings-back').addEventListener('click', () => showScreen('home'));
 
   $('btn-admin').addEventListener('click', () => {
     send({ type: 'admin_list_users' });

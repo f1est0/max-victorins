@@ -5,6 +5,7 @@ const DATA_DIR = path.join(__dirname, '..', 'data');
 const DATA_FILE = path.join(DATA_DIR, 'users.json');
 const DEFAULT_RATING = 1000;
 const ABORT_PENALTY = 20;
+const BOT_OPPONENT_RATING = 1000; // fixed virtual rating standing in for the bot's difficulty
 
 let users = {}; // maxUserId (string) -> profile
 
@@ -44,6 +45,11 @@ function getOrCreate(userInfo) {
       wins: 0,
       losses: 0,
       draws: 0,
+      ratingVsBot: DEFAULT_RATING,
+      botGamesPlayed: 0,
+      botWins: 0,
+      botLosses: 0,
+      botDraws: 0,
       banned: false,
       createdAt: Date.now(),
       lastSeenAt: Date.now(),
@@ -55,9 +61,20 @@ function getOrCreate(userInfo) {
     p.username = userInfo.username || p.username;
     p.photoUrl = userInfo.photoUrl || p.photoUrl;
     p.lastSeenAt = Date.now();
+    ensureBotFields(p);
   }
   save();
   return p;
+}
+
+// Profiles created before the bot leaderboard existed won't have these fields —
+// backfill them on the fly so old accounts don't produce NaN ratings.
+function ensureBotFields(p) {
+  if (p.ratingVsBot == null) p.ratingVsBot = DEFAULT_RATING;
+  if (p.botGamesPlayed == null) p.botGamesPlayed = 0;
+  if (p.botWins == null) p.botWins = 0;
+  if (p.botLosses == null) p.botLosses = 0;
+  if (p.botDraws == null) p.botDraws = 0;
 }
 
 function get(id) {
@@ -111,4 +128,46 @@ function applyAbortPenalty(id) {
   save();
 }
 
-module.exports = { getOrCreate, get, list, setBanned, applyEloResult, applyAbortPenalty, DEFAULT_RATING };
+// score: 1 = beat the bot, 0.5 = tied, 0 = lost to the bot
+function applyBotResult(id, score, kFactor = 32) {
+  const p = users[String(id)];
+  if (!p) return;
+  ensureBotFields(p);
+
+  const expected = expectedScore(p.ratingVsBot, BOT_OPPONENT_RATING);
+  p.ratingVsBot = Math.round(p.ratingVsBot + kFactor * (score - expected));
+
+  if (score === 1) p.botWins += 1;
+  else if (score === 0) p.botLosses += 1;
+  else p.botDraws += 1;
+
+  p.botGamesPlayed += 1;
+  save();
+}
+
+function listBotLeaderboard(limit = 50) {
+  return Object.values(users)
+    .filter((u) => u.botGamesPlayed > 0)
+    .sort((a, b) => b.ratingVsBot - a.ratingVsBot)
+    .slice(0, limit)
+    .map((u) => ({
+      id: u.id,
+      name: [u.firstName, u.lastName].filter(Boolean).join(' ').trim() || u.username || 'Игрок',
+      rating: u.ratingVsBot,
+      gamesPlayed: u.botGamesPlayed,
+      wins: u.botWins,
+      losses: u.botLosses,
+    }));
+}
+
+module.exports = {
+  getOrCreate,
+  get,
+  list,
+  setBanned,
+  applyEloResult,
+  applyAbortPenalty,
+  applyBotResult,
+  listBotLeaderboard,
+  DEFAULT_RATING,
+};

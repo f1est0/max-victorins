@@ -62,6 +62,8 @@
         <button id="btn-join" class="btn">Войти по коду</button>
       </div>
 
+      <button id="btn-ratings" class="btn">🏆 Рейтинги</button>
+
       <p id="home-error" class="error"></p>
       <button id="btn-support" class="btn support-btn">💬 Связаться с поддержкой</button>
     </div>
@@ -112,6 +114,30 @@
     <h1>Админ-панель</h1>
     <ul id="admin-users" class="players-list"></ul>
     <button id="btn-admin-back" class="btn">Назад</button>
+  </section>
+
+  <section id="screen-ratings" class="screen">
+    <h1>Рейтинги</h1>
+    <div class="tabs">
+      <button class="tab-btn" data-tab="overall">Рейтинг</button>
+      <button class="tab-btn" data-tab="bot">Бот</button>
+      <button class="tab-btn" data-tab="friends">Друзья</button>
+    </div>
+
+    <div id="tab-overall" class="tab-content" hidden>
+      <p class="hint centered">Скоро — рейтинг подбора соперника ещё не запущен.</p>
+    </div>
+
+    <div id="tab-bot" class="tab-content" hidden>
+      <ol id="bot-leaderboard" class="leaderboard"></ol>
+      <p id="bot-leaderboard-empty" class="hint centered" hidden>Пока никто не играл против бота.</p>
+    </div>
+
+    <div id="tab-friends" class="tab-content" hidden>
+      <p class="hint centered">Скоро.</p>
+    </div>
+
+    <button id="btn-ratings-back" class="btn">Назад</button>
   </section>
 
   <div id="confirm-modal" class="modal-overlay" hidden>

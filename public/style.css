@@ -177,6 +177,26 @@ h2 { font-size: 1.15rem; margin: 0 0 12px; }
   max-width: 100%;
 }
 
+.tabs {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 20px;
+}
+
+.tab-btn {
+  flex: 1;
+  padding: 10px;
+  border-radius: 10px;
+  border: none;
+  background: var(--card);
+  color: var(--muted);
+  font-size: .9rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.tab-btn.active { background: var(--accent); color: #fff; }
+
 .final-winner {
   font-size: 1.2rem;
   font-weight: 700;
