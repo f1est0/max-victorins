@@ -145,21 +145,37 @@ h2 { font-size: 1.15rem; margin: 0 0 12px; }
 .field { margin-bottom: 16px; }
 .centered { text-align: center; }
 
-.name-row {
+.user-id-block {
   display: flex;
+  flex-direction: column;
   align-items: center;
-  gap: 10px;
+  gap: 12px;
+  margin-bottom: 20px;
 }
 
-.user-avatar {
-  width: 44px;
-  height: 44px;
+.user-id-block .user-avatar {
+  width: 200px;
+  height: 200px;
   border-radius: 50%;
   object-fit: cover;
   flex-shrink: 0;
 }
 
-.name-row input { margin-bottom: 0; }
+#name-input {
+  text-align: center;
+}
+
+#name-input:disabled {
+  background: transparent;
+  border: none;
+  color: var(--text);
+  font-size: 1.2rem;
+  font-weight: 700;
+  padding: 0;
+  margin-bottom: 0;
+  width: auto;
+  max-width: 100%;
+}
 
 .final-winner {
   font-size: 1.2rem;
