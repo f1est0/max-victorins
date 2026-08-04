@@ -1,0 +1,29 @@
+<svg viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Викторина">
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#6fa3ff"/>
+      <stop offset="100%" stop-color="#7a5bef"/>
+    </linearGradient>
+    <linearGradient id="shine" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#ffffff" stop-opacity="0.35"/>
+      <stop offset="100%" stop-color="#ffffff" stop-opacity="0"/>
+    </linearGradient>
+    <filter id="soft-shadow" x="-30%" y="-30%" width="160%" height="160%">
+      <feDropShadow dx="0" dy="6" stdDeviation="10" flood-color="#3f4bbf" flood-opacity="0.35"/>
+    </filter>
+  </defs>
+
+  <rect x="10" y="10" width="180" height="180" rx="44" fill="url(#bg)" filter="url(#soft-shadow)"/>
+  <rect x="10" y="10" width="180" height="90" rx="44" fill="url(#shine)"/>
+
+  <circle cx="151" cy="46" r="7" fill="#ffe27a"/>
+  <circle cx="166" cy="66" r="4" fill="#ffe27a" opacity="0.8"/>
+  <circle cx="40" cy="152" r="5" fill="#ffffff" opacity="0.5"/>
+
+  <text x="100" y="128" text-anchor="middle"
+        font-family="-apple-system, 'Segoe UI', Roboto, Arial, sans-serif"
+        font-size="118" font-weight="800" fill="#ffffff"
+        style="paint-order: stroke; stroke: rgba(63,75,191,0.25); stroke-width: 2px;">?</text>
+
+  <circle cx="100" cy="164" r="5.5" fill="#ffffff" opacity="0.9"/>
+</svg>
