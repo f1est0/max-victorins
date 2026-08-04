@@ -75,20 +75,96 @@
     $('home-error').textContent = 'Соединение потеряно. Обновите страницу.';
   });
 
+  let packsData = { standalone: [], categories: [], maxQuestions: 30, defaultCount: 10 };
+
   function loadPacks() {
     fetch('/api/packs')
       .then((r) => r.json())
-      .then((packs) => {
-        const sel = $('pack-select');
+      .then((data) => {
+        packsData = data;
+        const sel = $('topic-select');
         sel.innerHTML = '';
-        for (const p of packs) {
+        for (const p of data.standalone) {
           const opt = document.createElement('option');
-          opt.value = p.id;
-          opt.textContent = `${p.title} (${p.count} вопросов)`;
+          opt.value = `pack:${p.id}`;
+          opt.textContent = `${p.title} (${p.count})`;
           sel.appendChild(opt);
         }
+        for (const c of data.categories) {
+          const opt = document.createElement('option');
+          opt.value = `category:${c.id}`;
+          opt.textContent = `${c.title} (${c.totalCount})`;
+          sel.appendChild(opt);
+        }
+        $('count-input').max = data.maxQuestions;
+        onTopicChanged();
       });
   }
+
+  function findCategory(id) {
+    return packsData.categories.find((c) => c.id === id);
+  }
+
+  function onTopicChanged() {
+    const [kind, id] = $('topic-select').value.split(':');
+    if (kind === 'category') {
+      const cat = findCategory(id);
+      $('subtopic-wrap').hidden = false;
+      const sub = $('subtopic-select');
+      sub.innerHTML = '';
+      const allOpt = document.createElement('option');
+      allOpt.value = 'ALL';
+      allOpt.textContent = `Все темы раздела (из ${cat ? cat.totalCount : 0})`;
+      sub.appendChild(allOpt);
+      for (const t of cat ? cat.topics : []) {
+        const opt = document.createElement('option');
+        opt.value = t.id;
+        opt.textContent = `${t.title} (${t.count})`;
+        sub.appendChild(opt);
+      }
+    } else {
+      $('subtopic-wrap').hidden = true;
+    }
+    updateCountBounds();
+  }
+
+  function availableQuestionCount() {
+    const [kind, id] = $('topic-select').value.split(':');
+    if (kind === 'category') {
+      const cat = findCategory(id);
+      if (!cat) return 0;
+      const subVal = $('subtopic-select').value;
+      if (subVal === 'ALL') return cat.totalCount;
+      const t = cat.topics.find((t) => t.id === subVal);
+      return t ? t.count : 0;
+    }
+    const p = packsData.standalone.find((p) => p.id === id);
+    return p ? p.count : 0;
+  }
+
+  function updateCountBounds() {
+    const max = Math.max(1, availableQuestionCount());
+    const input = $('count-input');
+    input.max = max;
+    input.min = 1;
+    if (!input.value || Number(input.value) > max) {
+      input.value = Math.min(packsData.defaultCount || 10, max);
+    }
+  }
+
+  function buildSelection() {
+    const [kind, id] = $('topic-select').value.split(':');
+    const count = Math.max(1, Number($('count-input').value) || 1);
+    if (kind === 'category') {
+      const subVal = $('subtopic-select').value;
+      if (subVal === 'ALL') return { kind: 'category', categoryId: id, count };
+      return { kind: 'pack', packId: subVal, count };
+    }
+    return { kind: 'pack', packId: id, count };
+  }
+
+  $('topic-select').addEventListener('change', onTopicChanged);
+  $('subtopic-select').addEventListener('change', updateCountBounds);
 
   function handleMessage(msg) {
     switch (msg.type) {
@@ -401,7 +477,7 @@
     const name = (nameInput.value || 'Игрок').trim().slice(0, 24);
     localStorage.setItem('quiz_name', name);
     $('home-error').textContent = '';
-    send({ type: 'create_room', name, packId: $('pack-select').value, mode });
+    send({ type: 'create_room', name, selection: buildSelection(), mode });
   }
 
   $('btn-create').addEventListener('click', () => createRoom('multiplayer'));

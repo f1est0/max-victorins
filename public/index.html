@@ -29,8 +29,17 @@
 
     <div class="card">
       <h2>Играть</h2>
-      <label for="pack-select">Набор вопросов</label>
-      <select id="pack-select"></select>
+      <label for="topic-select">Тема</label>
+      <select id="topic-select"></select>
+
+      <div id="subtopic-wrap" hidden>
+        <label for="subtopic-select">Раздел</label>
+        <select id="subtopic-select"></select>
+      </div>
+
+      <label for="count-input">Количество вопросов</label>
+      <input id="count-input" type="number" min="1" value="10" />
+
       <div class="btn-row">
         <button id="btn-solo" class="btn">Одиночная игра</button>
         <button id="btn-bot" class="btn">Против бота</button>

@@ -77,15 +77,26 @@ const MIME = {
   '.m4a': 'audio/mp4',
 };
 
+const DEFAULT_QUESTION_COUNT = 10; // used when the client doesn't ask for a specific count
+const MAX_QUESTIONS_PER_GAME = 30; // sanity cap regardless of how big a pack/category grows
+
 function loadPacks() {
   const packs = {};
+  const categoryMeta = {}; // top-level folder id -> { title }
 
   function walk(dir, prefix) {
     for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
       const fullPath = path.join(dir, entry.name);
       if (entry.isDirectory()) {
-        walk(fullPath, prefix ? `${prefix}/${entry.name}` : entry.name);
-      } else if (entry.name.endsWith('.json')) {
+        const catId = prefix ? `${prefix}/${entry.name}` : entry.name;
+        if (!prefix) {
+          const metaPath = path.join(fullPath, '_meta.json');
+          if (fs.existsSync(metaPath)) {
+            categoryMeta[catId] = JSON.parse(fs.readFileSync(metaPath, 'utf8'));
+          }
+        }
+        walk(fullPath, catId);
+      } else if (entry.name.endsWith('.json') && entry.name !== '_meta.json') {
         const baseName = path.basename(entry.name, '.json');
         const id = prefix ? `${prefix}/${baseName}` : baseName;
         packs[id] = JSON.parse(fs.readFileSync(fullPath, 'utf8'));
@@ -94,10 +105,47 @@ function loadPacks() {
   }
 
   walk(QUESTIONS_DIR, '');
-  return packs;
+  return { packs, categoryMeta };
 }
 
-let packs = loadPacks();
+function shuffleArray(arr) {
+  const copy = arr.slice();
+  for (let i = copy.length - 1; i > 0; i--) {
+    const j = crypto.randomInt(i + 1);
+    [copy[i], copy[j]] = [copy[j], copy[i]];
+  }
+  return copy;
+}
+
+// Builds a one-off pack {title, questions} for a game session from a client
+// selection — either a single pack (optionally capped/randomized to `count`
+// questions) or a whole category mixed together and randomly sampled.
+function buildEffectivePack(selection) {
+  if (!selection || typeof selection !== 'object') return null;
+  const count = Math.max(1, Math.min(MAX_QUESTIONS_PER_GAME, Number(selection.count) || DEFAULT_QUESTION_COUNT));
+
+  if (selection.kind === 'category') {
+    const catId = String(selection.categoryId || '');
+    const pool = [];
+    for (const [id, pack] of Object.entries(packs)) {
+      if (id.startsWith(`${catId}/`)) pool.push(...pack.questions);
+    }
+    if (pool.length === 0) return null;
+    return {
+      title: categoryMeta[catId] ? categoryMeta[catId].title : catId,
+      questions: shuffleArray(pool).slice(0, Math.min(count, pool.length)),
+    };
+  }
+
+  const pack = packs[selection.packId];
+  if (!pack) return null;
+  return {
+    title: pack.title,
+    questions: shuffleArray(pack.questions).slice(0, Math.min(count, pack.questions.length)),
+  };
+}
+
+let { packs, categoryMeta } = loadPacks();
 const rooms = new RoomManager();
 
 function serveStatic(req, res) {
@@ -123,13 +171,33 @@ function serveStatic(req, res) {
 
 const server = http.createServer((req, res) => {
   if (req.url === '/api/packs') {
-    const list = Object.entries(packs).map(([id, p]) => ({
-      id,
-      title: p.title,
-      count: p.questions.length,
+    const standalone = [];
+    const categoriesById = new Map();
+
+    for (const [id, pack] of Object.entries(packs)) {
+      const slashIndex = id.indexOf('/');
+      if (slashIndex === -1) {
+        standalone.push({ id, title: pack.title, count: pack.questions.length });
+        continue;
+      }
+      const catId = id.slice(0, slashIndex);
+      if (!categoriesById.has(catId)) {
+        categoriesById.set(catId, {
+          id: catId,
+          title: categoryMeta[catId] ? categoryMeta[catId].title : catId,
+          topics: [],
+        });
+      }
+      categoriesById.get(catId).topics.push({ id, title: pack.title, count: pack.questions.length });
+    }
+
+    const categories = Array.from(categoriesById.values()).map((c) => ({
+      ...c,
+      totalCount: c.topics.reduce((sum, t) => sum + t.count, 0),
     }));
+
     res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
-    return res.end(JSON.stringify(list));
+    return res.end(JSON.stringify({ standalone, categories, maxQuestions: MAX_QUESTIONS_PER_GAME, defaultCount: DEFAULT_QUESTION_COUNT }));
   }
   if (req.url === '/healthz') {
     res.writeHead(200);
@@ -241,7 +309,7 @@ wss.on('connection', (ws) => {
           ws.send(JSON.stringify({ type: 'error', message: 'Вы забанены и не можете играть' }));
           return;
         }
-        const pack = packs[msg.packId];
+        const pack = buildEffectivePack(msg.selection);
         if (!pack) {
           ws.send(JSON.stringify({ type: 'error', message: 'Пакет вопросов не найден' }));
           return;
