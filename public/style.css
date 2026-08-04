@@ -44,6 +44,8 @@ html, body {
   z-index: 20;
 }
 
+#screen-lobby, #screen-question, #screen-reveal { padding-top: 40px; }
+
 .modal-overlay {
   position: fixed;
   inset: 0;
