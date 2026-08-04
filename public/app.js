@@ -234,12 +234,44 @@
     $('q-text').textContent = q.text;
     $('q-status').textContent = '';
 
+    const media = $('q-media');
+    media.innerHTML = '';
+    if (q.image) {
+      const img = document.createElement('img');
+      img.className = 'q-image';
+      img.src = '/media/' + q.image;
+      img.alt = '';
+      media.appendChild(img);
+    }
+    if (q.audio) {
+      const audio = document.createElement('audio');
+      audio.className = 'q-audio';
+      audio.src = '/media/' + q.audio;
+      audio.controls = true;
+      media.appendChild(audio);
+    }
+
     const box = $('q-options');
     box.innerHTML = '';
-    q.options.forEach((optText, i) => {
+    q.options.forEach((opt, i) => {
       const btn = document.createElement('button');
       btn.className = 'opt-btn';
-      btn.textContent = optText;
+      if (typeof opt === 'string') {
+        btn.textContent = opt;
+      } else {
+        if (opt.image) {
+          const img = document.createElement('img');
+          img.className = 'opt-image';
+          img.src = '/media/' + opt.image;
+          img.alt = '';
+          btn.appendChild(img);
+        }
+        if (opt.text) {
+          const span = document.createElement('span');
+          span.textContent = opt.text;
+          btn.appendChild(span);
+        }
+      }
       btn.addEventListener('click', () => selectOption(i, btn));
       box.appendChild(btn);
     });

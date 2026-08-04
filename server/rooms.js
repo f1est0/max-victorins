@@ -7,6 +7,12 @@ const FAST_ANSWER_MS = 1200; // correct answers faster than this are flagged as 
 const SUDDEN_DEATH_MS = 5000; // once someone answers in multiplayer, everyone else gets this long
 const ANSWER_CONFIRM_DELAY_MS = 1500; // pause before reveal when everyone finishes early, so the last answer's own color has time to register
 
+function optionLabel(opt) {
+  if (opt == null) return null;
+  if (typeof opt === 'string') return opt;
+  return opt.text || '(изображение)';
+}
+
 function generateCode(existingCodes) {
   let code;
   do {
@@ -130,6 +136,8 @@ class Room {
       index: this.questionIndex,
       total: this.pack.questions.length,
       text: q.text,
+      image: q.image || null,
+      audio: q.audio || null,
       options: order.map((i) => q.options[i]),
       timeLimitMs,
     };
@@ -302,7 +310,7 @@ class Room {
     const roundResults = Array.from(this.players.values()).map((p) => ({
       id: p.id,
       name: p.name,
-      answerText: p.lastAnswerActualIndex != null ? q.options[p.lastAnswerActualIndex] : null,
+      answerText: p.lastAnswerActualIndex != null ? optionLabel(q.options[p.lastAnswerActualIndex]) : null,
       correct: p.lastAnswerActualIndex === q.correctIndex,
       scoreDelta: p.roundScoreDelta,
     }));
