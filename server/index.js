@@ -12,9 +12,10 @@ function isAdminId(id) {
   return id != null && ADMIN_USER_IDS.includes(String(id));
 }
 
-// Multiplayer-only ELO update once a game finishes normally, for authenticated players.
+// Rating only applies to matchmade games (not yet built), not bot/solo/private
+// code-based rooms with friends — those stay purely for fun, no ELO on the line.
 function handleGameOver(mode, results) {
-  if (mode !== 'multiplayer') return;
+  if (mode !== 'matchmaking') return;
   const ranked = results.filter((r) => !r.isBot && r.maxUserId);
   for (let i = 0; i < ranked.length; i++) {
     for (let j = i + 1; j < ranked.length; j++) {
@@ -105,7 +106,7 @@ wss.on('connection', (ws) => {
   const leaveCurrentRoom = () => {
     if (!currentRoom) return;
     const wasInProgress =
-      currentRoom.mode === 'multiplayer' &&
+      currentRoom.mode === 'matchmaking' &&
       (currentRoom.state === 'question' || currentRoom.state === 'reveal');
     currentRoom.removePlayer(clientId);
     currentRoom.broadcast({ type: 'room_update', players: currentRoom.playersList() });
@@ -198,6 +199,7 @@ wss.on('connection', (ws) => {
           type: 'room_created',
           code: room.code,
           isHost: false,
+          mode: room.mode,
           players: room.playersList(),
         }));
         room.broadcast({ type: 'room_update', players: room.playersList() }, clientId);
@@ -207,6 +209,10 @@ wss.on('connection', (ws) => {
       case 'start_game': {
         if (!currentRoom || currentRoom.hostId !== clientId) return;
         if (currentRoom.players.size < 1) return;
+        if (currentRoom.mode === 'multiplayer' && currentRoom.players.size < 2) {
+          ws.send(JSON.stringify({ type: 'error', message: 'Нужно минимум 2 игрока, чтобы начать' }));
+          return;
+        }
         currentRoom.startGame();
         break;
       }

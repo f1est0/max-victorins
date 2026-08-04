@@ -104,8 +104,6 @@
         gameMode = msg.mode || 'multiplayer';
         if (gameMode === 'multiplayer') {
           $('lobby-code').textContent = roomCode;
-          $('btn-start').hidden = !isHost;
-          $('lobby-wait').hidden = isHost;
           renderPlayers(msg.players);
           showScreen('lobby');
         }
@@ -117,6 +115,7 @@
 
       case 'error':
         $('home-error').textContent = msg.message;
+        $('lobby-error').textContent = msg.message;
         break;
 
       case 'game_started':
@@ -163,6 +162,16 @@
       li.textContent = p.name;
       ul.appendChild(li);
     }
+    updateLobbyControls(players.length);
+  }
+
+  function updateLobbyControls(playerCount) {
+    const enoughPlayers = gameMode !== 'multiplayer' || playerCount >= 2;
+    $('btn-start').hidden = !(isHost && enoughPlayers);
+    $('lobby-wait').hidden = isHost && enoughPlayers;
+    $('lobby-wait').textContent = isHost
+      ? 'Ждём ещё игроков (нужно минимум 2)…'
+      : 'Ожидание хоста…';
   }
 
   let currentOptionIndex = null;
@@ -343,7 +352,7 @@
 
   // --- Abort quiz ---
   $('btn-abort').addEventListener('click', () => {
-    $('confirm-text').textContent = gameMode === 'multiplayer'
+    $('confirm-text').textContent = gameMode === 'matchmaking'
       ? 'Вы точно хотите прервать викторину? Рейтинг понизится.'
       : 'Вы точно хотите прервать викторину?';
     $('confirm-modal').hidden = false;
