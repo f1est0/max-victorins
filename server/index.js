@@ -12,6 +12,22 @@ function isAdminId(id) {
   return id != null && ADMIN_USER_IDS.includes(String(id));
 }
 
+// Fully removes a player right now (no grace period) — used for explicit,
+// intentional leaves ("Назад" / confirmed "Прервать"), as opposed to a socket
+// just dropping, which gets a reconnect window instead.
+function removeFromRoomNow(rooms, room, clientId, profile) {
+  const wasInProgress =
+    room.mode === 'matchmaking' && (room.state === 'question' || room.state === 'reveal');
+  room.removePlayer(clientId);
+  room.broadcast({ type: 'room_update', players: room.playersList() });
+  if (wasInProgress && profile) {
+    store.applyAbortPenalty(profile.id);
+  }
+  if (room.isEmpty()) {
+    rooms.delete(room.code);
+  }
+}
+
 // Rating only applies to matchmade games (not yet built), not bot/solo/private
 // code-based rooms with friends — those stay purely for fun, no ELO on the line.
 function handleGameOver(mode, results) {
@@ -125,16 +141,7 @@ wss.on('connection', (ws) => {
     player.disconnectTimer = setTimeout(() => {
       const stillThere = room.players.get(cid);
       if (!stillThere || stillThere.ws) return; // reconnected in the meantime
-      const wasInProgress =
-        room.mode === 'matchmaking' && (room.state === 'question' || room.state === 'reveal');
-      room.removePlayer(cid);
-      room.broadcast({ type: 'room_update', players: room.playersList() });
-      if (wasInProgress && profile) {
-        store.applyAbortPenalty(profile.id);
-      }
-      if (room.isEmpty()) {
-        rooms.delete(room.code);
-      }
+      removeFromRoomNow(rooms, room, cid, profile);
     }, DISCONNECT_GRACE_MS);
 
     currentRoom = null;
@@ -278,6 +285,18 @@ wss.on('connection', (ws) => {
       case 'distracted': {
         if (!currentRoom) return;
         currentRoom.markDistracted(clientId);
+        break;
+      }
+
+      case 'leave_room': {
+        if (!currentRoom) return;
+        const player = currentRoom.players.get(clientId);
+        if (player && player.disconnectTimer) {
+          clearTimeout(player.disconnectTimer);
+          player.disconnectTimer = null;
+        }
+        removeFromRoomNow(rooms, currentRoom, clientId, authedProfile);
+        currentRoom = null;
         break;
       }
 

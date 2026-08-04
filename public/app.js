@@ -383,7 +383,8 @@
   });
 
   $('btn-restart').addEventListener('click', () => {
-    location.reload();
+    send({ type: 'leave_room' });
+    setTimeout(() => location.reload(), 80);
   });
 
   // --- Abort quiz ---
@@ -398,14 +399,17 @@
     $('confirm-modal').hidden = true;
   });
 
-  $('btn-confirm-abort').addEventListener('click', () => {
-    location.reload();
-  });
+  function leaveAndReload() {
+    // Tell the server this is a deliberate exit, not a dropped connection —
+    // otherwise the reconnect logic would resume us right back into the room.
+    send({ type: 'leave_room' });
+    setTimeout(() => location.reload(), 80);
+  }
+
+  $('btn-confirm-abort').addEventListener('click', leaveAndReload);
 
   // --- Leave lobby before the game has started: no confirmation needed ---
-  $('btn-back').addEventListener('click', () => {
-    location.reload();
-  });
+  $('btn-back').addEventListener('click', leaveAndReload);
 
   // --- Support: open the admin's MAX profile so people can message them ---
   $('btn-support').addEventListener('click', () => {
