@@ -172,6 +172,14 @@ input, select {
 .btn.primary:active { background: var(--accent-dark); }
 .btn:disabled { opacity: .5; }
 
+.support-btn {
+  background: transparent;
+  color: var(--muted);
+  font-weight: 500;
+  font-size: .9rem;
+  margin-top: 4px;
+}
+
 .error { color: var(--wrong); min-height: 1.2em; font-size: .9rem; }
 .hint { color: var(--muted); font-size: .9rem; }
 

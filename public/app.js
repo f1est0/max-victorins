@@ -1,6 +1,8 @@
 (function () {
   'use strict';
 
+  const SUPPORT_PROFILE_URL = 'https://max.ru/u/f9LHodD0cOKZMBqCkQNDf8u-l0fg-_Qrqho9o_1VUQxSQReqL5dyAxN0luM';
+
   // --- MAX Bridge integration (safe no-ops if not running inside MAX) ---
   const MaxApp = window.WebApp || null;
   let maxUser = null;
@@ -403,6 +405,19 @@
   // --- Leave lobby before the game has started: no confirmation needed ---
   $('btn-back').addEventListener('click', () => {
     location.reload();
+  });
+
+  // --- Support: open the admin's MAX profile so people can message them ---
+  $('btn-support').addEventListener('click', () => {
+    try {
+      if (MaxApp && typeof MaxApp.openMaxLink === 'function') {
+        MaxApp.openMaxLink(SUPPORT_PROFILE_URL);
+        return;
+      }
+    } catch (e) {
+      console.warn('openMaxLink failed:', e);
+    }
+    window.open(SUPPORT_PROFILE_URL, '_blank');
   });
 
   // --- Copy room code ---
