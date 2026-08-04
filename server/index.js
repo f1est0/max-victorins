@@ -90,7 +90,7 @@ const MIME = {
 };
 
 const DEFAULT_QUESTION_COUNT = 10; // used when the client doesn't ask for a specific count
-const MAX_QUESTIONS_PER_GAME = 30; // sanity cap regardless of how big a pack/category grows
+const MAX_QUESTIONS_PER_GAME = 200; // sanity ceiling only — the real limit is however many questions the selection actually has
 
 function loadPacks() {
   const packs = {};

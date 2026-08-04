@@ -185,7 +185,8 @@
 
   function buildSelection() {
     const [kind, id] = $('topic-select').value.split(':');
-    const count = Math.max(1, Number($('count-input').value) || 1);
+    const max = Math.max(1, availableQuestionCount());
+    const count = Math.min(max, Math.max(1, Number($('count-input').value) || 1));
     if (kind === 'all') return { kind: 'all', count };
     if (kind === 'category') {
       const subVal = $('subtopic-select').value;
@@ -197,6 +198,14 @@
 
   $('topic-select').addEventListener('change', onTopicChanged);
   $('subtopic-select').addEventListener('change', updateCountBounds);
+
+  $('count-input').addEventListener('change', () => {
+    const max = Math.max(1, availableQuestionCount());
+    const input = $('count-input');
+    const v = Number(input.value);
+    if (!v || v < 1) input.value = 1;
+    else if (v > max) input.value = max;
+  });
 
   function handleMessage(msg) {
     switch (msg.type) {
