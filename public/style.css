@@ -145,6 +145,22 @@ h2 { font-size: 1.15rem; margin: 0 0 12px; }
 .field { margin-bottom: 16px; }
 .centered { text-align: center; }
 
+.name-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.user-avatar {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  object-fit: cover;
+  flex-shrink: 0;
+}
+
+.name-row input { margin-bottom: 0; }
+
 .final-winner {
   font-size: 1.2rem;
   font-weight: 700;

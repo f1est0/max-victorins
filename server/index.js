@@ -340,6 +340,7 @@ wss.on('connection', (ws) => {
           banned: authedProfile.banned,
           isAdmin: isAdminId(authedProfile.id),
           name: [authedProfile.firstName, authedProfile.lastName].filter(Boolean).join(' ').trim(),
+          photoUrl: authedProfile.photoUrl || null,
           profile: {
             rating: authedProfile.rating,
             gamesPlayed: authedProfile.gamesPlayed,

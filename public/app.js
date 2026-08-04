@@ -38,9 +38,16 @@
   }
 
   const nameInput = $('name-input');
+  const avatarImg = $('user-avatar');
+  function setAvatar(url) {
+    if (!url) return;
+    avatarImg.src = url;
+    avatarImg.hidden = false;
+  }
   if (maxUser && (maxUser.first_name || maxUser.name)) {
     nameInput.value = maxUser.first_name || maxUser.name;
     nameInput.disabled = true;
+    setAvatar(maxUser.photo_url);
   } else {
     const saved = localStorage.getItem('quiz_name');
     if (saved) nameInput.value = saved;
@@ -249,6 +256,7 @@
           nameInput.value = msg.name;
           nameInput.disabled = true;
         }
+        setAvatar(msg.photoUrl);
         if (msg.banned) {
           showScreen('banned');
           break;
