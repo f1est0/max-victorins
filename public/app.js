@@ -95,7 +95,8 @@
   });
 
   ws.addEventListener('close', () => {
-    $('home-error').textContent = 'Соединение потеряно. Обновите страницу.';
+    $('connection-error').hidden = false;
+    $('connection-error').textContent = 'Соединение потеряно. Обновите страницу.';
   });
 
   let packsData = { standalone: [], categories: [], maxQuestions: 30, defaultCount: 10 };
