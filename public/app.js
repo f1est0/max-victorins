@@ -465,8 +465,8 @@
     ul.innerHTML = '';
     for (const r of roundResults) {
       const li = document.createElement('li');
-      const answerText = r.answerText || 'не ответил';
-      li.innerHTML = `<span>${r.name}</span><span class="${r.correct ? 'answer-correct' : 'answer-wrong'}">${answerText}</span>`;
+      li.className = r.correct ? 'answer-row-correct' : 'answer-row-wrong';
+      li.innerHTML = `<span>${r.name}</span>`;
       ul.appendChild(li);
     }
   }

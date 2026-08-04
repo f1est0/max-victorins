@@ -294,8 +294,8 @@ input[type="number"]::-webkit-inner-spin-button {
   font-size: .9rem;
 }
 
-.answers-list .answer-correct { color: var(--correct); }
-.answers-list .answer-wrong { color: var(--wrong); }
+.answers-list li.answer-row-correct { background: var(--correct); color: #06210f; }
+.answers-list li.answer-row-wrong { background: var(--wrong); color: #2a0505; }
 
 #q-media { margin: 12px 0; }
 
