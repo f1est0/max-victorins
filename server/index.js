@@ -136,6 +136,16 @@ function buildEffectivePack(selection) {
   if (!selection || typeof selection !== 'object') return null;
   const count = Math.max(1, Math.min(MAX_QUESTIONS_PER_GAME, Number(selection.count) || DEFAULT_QUESTION_COUNT));
 
+  if (selection.kind === 'all') {
+    const pool = [];
+    for (const pack of Object.values(packs)) pool.push(...pack.questions);
+    if (pool.length === 0) return null;
+    return {
+      title: 'Все темы',
+      questions: shuffleArray(pool).slice(0, Math.min(count, pool.length)),
+    };
+  }
+
   if (selection.kind === 'category') {
     const catId = String(selection.categoryId || '');
     const pool = [];
@@ -208,8 +218,16 @@ const server = http.createServer((req, res) => {
       totalCount: c.topics.reduce((sum, t) => sum + t.count, 0),
     }));
 
+    const overallCount = Object.values(packs).reduce((sum, p) => sum + p.questions.length, 0);
+
     res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
-    return res.end(JSON.stringify({ standalone, categories, maxQuestions: MAX_QUESTIONS_PER_GAME, defaultCount: DEFAULT_QUESTION_COUNT }));
+    return res.end(JSON.stringify({
+      standalone,
+      categories,
+      overallCount,
+      maxQuestions: MAX_QUESTIONS_PER_GAME,
+      defaultCount: DEFAULT_QUESTION_COUNT,
+    }));
   }
   if (req.url === '/healthz') {
     res.writeHead(200);

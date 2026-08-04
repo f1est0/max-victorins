@@ -99,7 +99,7 @@
     $('connection-error').textContent = 'Соединение потеряно. Обновите страницу.';
   });
 
-  let packsData = { standalone: [], categories: [], maxQuestions: 30, defaultCount: 10 };
+  let packsData = { standalone: [], categories: [], overallCount: 0, maxQuestions: 30, defaultCount: 10 };
 
   function loadPacks() {
     fetch('/api/packs')
@@ -108,6 +108,12 @@
         packsData = data;
         const sel = $('topic-select');
         sel.innerHTML = '';
+
+        const allOpt = document.createElement('option');
+        allOpt.value = 'all:all';
+        allOpt.textContent = `Все темы (${data.overallCount})`;
+        sel.appendChild(allOpt);
+
         for (const p of data.standalone) {
           const opt = document.createElement('option');
           opt.value = `pack:${p.id}`;
@@ -154,6 +160,7 @@
 
   function availableQuestionCount() {
     const [kind, id] = $('topic-select').value.split(':');
+    if (kind === 'all') return packsData.overallCount;
     if (kind === 'category') {
       const cat = findCategory(id);
       if (!cat) return 0;
@@ -179,6 +186,7 @@
   function buildSelection() {
     const [kind, id] = $('topic-select').value.split(':');
     const count = Math.max(1, Number($('count-input').value) || 1);
+    if (kind === 'all') return { kind: 'all', count };
     if (kind === 'category') {
       const subVal = $('subtopic-select').value;
       if (subVal === 'ALL') return { kind: 'category', categoryId: id, count };
