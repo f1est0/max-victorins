@@ -79,12 +79,21 @@ const MIME = {
 
 function loadPacks() {
   const packs = {};
-  for (const file of fs.readdirSync(QUESTIONS_DIR)) {
-    if (!file.endsWith('.json')) continue;
-    const id = path.basename(file, '.json');
-    const data = JSON.parse(fs.readFileSync(path.join(QUESTIONS_DIR, file), 'utf8'));
-    packs[id] = data;
+
+  function walk(dir, prefix) {
+    for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+      const fullPath = path.join(dir, entry.name);
+      if (entry.isDirectory()) {
+        walk(fullPath, prefix ? `${prefix}/${entry.name}` : entry.name);
+      } else if (entry.name.endsWith('.json')) {
+        const baseName = path.basename(entry.name, '.json');
+        const id = prefix ? `${prefix}/${baseName}` : baseName;
+        packs[id] = JSON.parse(fs.readFileSync(fullPath, 'utf8'));
+      }
+    }
   }
+
+  walk(QUESTIONS_DIR, '');
   return packs;
 }
 
