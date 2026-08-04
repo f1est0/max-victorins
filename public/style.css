@@ -156,6 +156,12 @@ input, select {
   margin-bottom: 10px;
 }
 
+input:disabled {
+  color: var(--muted);
+  background: #181b21;
+  opacity: 1;
+}
+
 input[type="number"] { -moz-appearance: textfield; }
 input[type="number"]::-webkit-outer-spin-button,
 input[type="number"]::-webkit-inner-spin-button {

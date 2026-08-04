@@ -12,6 +12,18 @@ function isAdminId(id) {
   return id != null && ADMIN_USER_IDS.includes(String(id));
 }
 
+// Verified players always play under their real MAX name — the client can't
+// override it by sending a different `name` in the message. Only unverified
+// guests (testing outside MAX, no signed initData) fall back to whatever
+// they typed.
+function resolveName(profile, fallbackRaw, fallbackDefault) {
+  if (profile) {
+    const fullName = [profile.firstName, profile.lastName].filter(Boolean).join(' ').trim();
+    if (fullName) return fullName.slice(0, 24);
+  }
+  return String(fallbackRaw || fallbackDefault).slice(0, 24);
+}
+
 // Fully removes a player right now (no grace period) — used for explicit,
 // intentional leaves ("Назад" / confirmed "Прервать"), as opposed to a socket
 // just dropping, which gets a reconnect window instead.
@@ -315,7 +327,7 @@ wss.on('connection', (ws) => {
           return;
         }
         const mode = ['solo', 'bot'].includes(msg.mode) ? msg.mode : 'multiplayer';
-        const name = String(msg.name || 'Хост').slice(0, 24);
+        const name = resolveName(authedProfile, msg.name, 'Хост');
         currentRoom = rooms.create(clientId, pack, mode);
         currentRoom.onGameOver = (results) => handleGameOver(mode, results);
         currentRoom.addPlayer(clientId, name, ws, authedProfile ? authedProfile.id : null);
@@ -345,7 +357,7 @@ wss.on('connection', (ws) => {
           ws.send(JSON.stringify({ type: 'error', message: 'Игра уже началась' }));
           return;
         }
-        const name = String(msg.name || 'Игрок').slice(0, 24);
+        const name = resolveName(authedProfile, msg.name, 'Игрок');
         currentRoom = room;
         room.addPlayer(clientId, name, ws, authedProfile ? authedProfile.id : null);
         ws.send(JSON.stringify({

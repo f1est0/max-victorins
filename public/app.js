@@ -37,6 +37,7 @@
   const nameInput = $('name-input');
   if (maxUser && (maxUser.first_name || maxUser.name)) {
     nameInput.value = maxUser.first_name || maxUser.name;
+    nameInput.disabled = true;
   } else {
     const saved = localStorage.getItem('quiz_name');
     if (saved) nameInput.value = saved;
@@ -194,7 +195,10 @@
 
       case 'auth_result':
         if (!msg.ok) break;
-        if (msg.name) nameInput.value = msg.name;
+        if (msg.name) {
+          nameInput.value = msg.name;
+          nameInput.disabled = true;
+        }
         if (msg.banned) {
           showScreen('banned');
           break;
