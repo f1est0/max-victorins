@@ -45,13 +45,15 @@ class Room {
     this.botTimer = null;
     this.questionStartedAt = 0;
     this.firstAnswerReceived = false;
+    this.onGameOver = null; // optional (results) => void, set by the server layer
   }
 
-  addPlayer(id, name, ws) {
+  addPlayer(id, name, ws, maxUserId) {
     this.players.set(id, {
       id,
       name,
       ws,
+      maxUserId: maxUserId || null,
       score: 0,
       answered: null,
       isBot: false,
@@ -158,6 +160,15 @@ class Room {
     if (this.questionIndex >= this.pack.questions.length) {
       this.state = 'finished';
       this.broadcast({ type: 'game_over', leaderboard: this.leaderboard() });
+      if (this.onGameOver) {
+        this.onGameOver(
+          Array.from(this.players.values()).map((p) => ({
+            maxUserId: p.maxUserId,
+            score: p.score,
+            isBot: p.isBot,
+          }))
+        );
+      }
       return;
     }
 

@@ -4,6 +4,30 @@ const path = require('path');
 const crypto = require('crypto');
 const { WebSocketServer } = require('ws');
 const { RoomManager } = require('./rooms');
+const { verifyInitData } = require('./auth');
+const store = require('./store');
+const { ADMIN_USER_IDS } = require('./env');
+
+function isAdminId(id) {
+  return id != null && ADMIN_USER_IDS.includes(String(id));
+}
+
+// Multiplayer-only ELO update once a game finishes normally, for authenticated players.
+function handleGameOver(mode, results) {
+  if (mode !== 'multiplayer') return;
+  const ranked = results.filter((r) => !r.isBot && r.maxUserId);
+  for (let i = 0; i < ranked.length; i++) {
+    for (let j = i + 1; j < ranked.length; j++) {
+      const a = ranked[i];
+      const b = ranked[j];
+      let scoreA;
+      if (a.score > b.score) scoreA = 1;
+      else if (a.score < b.score) scoreA = 0;
+      else scoreA = 0.5;
+      store.applyEloResult(a.maxUserId, b.maxUserId, scoreA);
+    }
+  }
+}
 
 const PORT = process.env.PORT || 3000;
 const PUBLIC_DIR = path.join(__dirname, '..', 'public');
@@ -76,11 +100,18 @@ const wss = new WebSocketServer({ server, path: '/ws' });
 wss.on('connection', (ws) => {
   const clientId = crypto.randomUUID();
   let currentRoom = null;
+  let authedProfile = null; // set once a valid, verified MAX initData comes in
 
   const leaveCurrentRoom = () => {
     if (!currentRoom) return;
+    const wasInProgress =
+      currentRoom.mode === 'multiplayer' &&
+      (currentRoom.state === 'question' || currentRoom.state === 'reveal');
     currentRoom.removePlayer(clientId);
     currentRoom.broadcast({ type: 'room_update', players: currentRoom.playersList() });
+    if (wasInProgress && authedProfile) {
+      store.applyAbortPenalty(authedProfile.id);
+    }
     if (currentRoom.isEmpty()) {
       rooms.delete(currentRoom.code);
     }
@@ -96,7 +127,34 @@ wss.on('connection', (ws) => {
     }
 
     switch (msg.type) {
+      case 'auth': {
+        const result = verifyInitData(msg.initData);
+        if (!result.ok) {
+          ws.send(JSON.stringify({ type: 'auth_result', ok: false, reason: result.reason }));
+          return;
+        }
+        authedProfile = store.getOrCreate(result.user);
+        ws.send(JSON.stringify({
+          type: 'auth_result',
+          ok: true,
+          banned: authedProfile.banned,
+          isAdmin: isAdminId(authedProfile.id),
+          name: [authedProfile.firstName, authedProfile.lastName].filter(Boolean).join(' ').trim(),
+          profile: {
+            rating: authedProfile.rating,
+            gamesPlayed: authedProfile.gamesPlayed,
+            wins: authedProfile.wins,
+            losses: authedProfile.losses,
+          },
+        }));
+        break;
+      }
+
       case 'create_room': {
+        if (authedProfile && authedProfile.banned) {
+          ws.send(JSON.stringify({ type: 'error', message: 'Вы забанены и не можете играть' }));
+          return;
+        }
         const pack = packs[msg.packId];
         if (!pack) {
           ws.send(JSON.stringify({ type: 'error', message: 'Пакет вопросов не найден' }));
@@ -105,7 +163,8 @@ wss.on('connection', (ws) => {
         const mode = ['solo', 'bot'].includes(msg.mode) ? msg.mode : 'multiplayer';
         const name = String(msg.name || 'Хост').slice(0, 24);
         currentRoom = rooms.create(clientId, pack, mode);
-        currentRoom.addPlayer(clientId, name, ws);
+        currentRoom.onGameOver = (results) => handleGameOver(mode, results);
+        currentRoom.addPlayer(clientId, name, ws, authedProfile ? authedProfile.id : null);
         if (mode === 'bot') currentRoom.addBot();
         ws.send(JSON.stringify({
           type: 'room_created',
@@ -119,6 +178,10 @@ wss.on('connection', (ws) => {
       }
 
       case 'join_room': {
+        if (authedProfile && authedProfile.banned) {
+          ws.send(JSON.stringify({ type: 'error', message: 'Вы забанены и не можете играть' }));
+          return;
+        }
         const room = rooms.get(msg.code);
         if (!room) {
           ws.send(JSON.stringify({ type: 'error', message: 'Комната не найдена' }));
@@ -130,7 +193,7 @@ wss.on('connection', (ws) => {
         }
         const name = String(msg.name || 'Игрок').slice(0, 24);
         currentRoom = room;
-        room.addPlayer(clientId, name, ws);
+        room.addPlayer(clientId, name, ws, authedProfile ? authedProfile.id : null);
         ws.send(JSON.stringify({
           type: 'room_created',
           code: room.code,
@@ -157,6 +220,19 @@ wss.on('connection', (ws) => {
       case 'distracted': {
         if (!currentRoom) return;
         currentRoom.markDistracted(clientId);
+        break;
+      }
+
+      case 'admin_list_users': {
+        if (!authedProfile || !isAdminId(authedProfile.id)) return;
+        ws.send(JSON.stringify({ type: 'admin_users', users: store.list() }));
+        break;
+      }
+
+      case 'admin_set_banned': {
+        if (!authedProfile || !isAdminId(authedProfile.id)) return;
+        const updated = store.setBanned(msg.userId, !!msg.banned);
+        if (updated) ws.send(JSON.stringify({ type: 'admin_users', users: store.list() }));
         break;
       }
 

@@ -163,7 +163,39 @@ input, select {
   margin-bottom: 8px;
   display: flex;
   justify-content: space-between;
+  align-items: center;
+  gap: 10px;
 }
+
+.admin-btn {
+  margin-left: auto;
+  background: transparent;
+  border: 1px solid #2c303a;
+  color: var(--muted);
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  font-size: 1rem;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.ban-btn {
+  padding: 6px 12px;
+  border-radius: 8px;
+  border: none;
+  font-size: .8rem;
+  font-weight: 600;
+  cursor: pointer;
+  flex-shrink: 0;
+  background: var(--wrong);
+  color: #fff;
+}
+
+.ban-btn.unban { background: var(--correct); color: #06210f; }
+
+.admin-user-info { display: flex; flex-direction: column; }
+.admin-user-info .admin-user-meta { color: var(--muted); font-size: .78rem; }
 
 .leaderboard li .rank { color: var(--accent); font-weight: 700; margin-right: 8px; }
 

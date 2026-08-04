@@ -13,7 +13,7 @@
 
   // --- DOM helpers ---
   const $ = (id) => document.getElementById(id);
-  const screens = ['home', 'lobby', 'question', 'reveal', 'final'];
+  const screens = ['home', 'lobby', 'question', 'reveal', 'final', 'banned', 'admin'];
   const ABORTABLE_SCREENS = ['lobby', 'question', 'reveal'];
   function showScreen(name) {
     for (const s of screens) {
@@ -45,7 +45,12 @@
     if (ws.readyState === WebSocket.OPEN) ws.send(JSON.stringify(msg));
   }
 
-  ws.addEventListener('open', loadPacks);
+  ws.addEventListener('open', () => {
+    loadPacks();
+    if (MaxApp && MaxApp.initData) {
+      send({ type: 'auth', initData: MaxApp.initData });
+    }
+  });
 
   ws.addEventListener('message', (evt) => {
     const msg = JSON.parse(evt.data);
@@ -73,6 +78,26 @@
 
   function handleMessage(msg) {
     switch (msg.type) {
+      case 'auth_result':
+        if (!msg.ok) break;
+        if (msg.name) nameInput.value = msg.name;
+        if (msg.banned) {
+          showScreen('banned');
+          break;
+        }
+        if (msg.profile) {
+          $('rating-display').hidden = false;
+          $('rating-display').textContent = `Рейтинг: ${msg.profile.rating} · игр сыграно: ${msg.profile.gamesPlayed}`;
+        }
+        if (msg.isAdmin) {
+          $('btn-admin').hidden = false;
+        }
+        break;
+
+      case 'admin_users':
+        renderAdminUsers(msg.users);
+        break;
+
       case 'room_created':
         isHost = msg.isHost;
         roomCode = msg.code;
@@ -244,6 +269,34 @@
       ol.appendChild(li);
     });
   }
+
+  function renderAdminUsers(users) {
+    const ul = $('admin-users');
+    ul.innerHTML = '';
+    for (const u of users) {
+      const li = document.createElement('li');
+      const displayName = [u.firstName, u.lastName].filter(Boolean).join(' ') || u.username || u.id;
+      const info = document.createElement('div');
+      info.className = 'admin-user-info';
+      info.innerHTML = `<span>${displayName}</span><span class="admin-user-meta">рейтинг ${u.rating} · игр ${u.gamesPlayed}</span>`;
+      const btn = document.createElement('button');
+      btn.className = 'ban-btn' + (u.banned ? ' unban' : '');
+      btn.textContent = u.banned ? 'Разбанить' : 'Забанить';
+      btn.addEventListener('click', () => {
+        send({ type: 'admin_set_banned', userId: u.id, banned: !u.banned });
+      });
+      li.appendChild(info);
+      li.appendChild(btn);
+      ul.appendChild(li);
+    }
+  }
+
+  $('btn-admin').addEventListener('click', () => {
+    send({ type: 'admin_list_users' });
+    showScreen('admin');
+  });
+
+  $('btn-admin-back').addEventListener('click', () => showScreen('home'));
 
   // --- Anti-cheat: flag tab-switching / losing focus while a question is live ---
   function reportDistractionIfNeeded() {

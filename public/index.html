@@ -17,7 +17,9 @@
     <div class="brand">
       <img src="/logo.png" alt="" class="logo" />
       <h1>Викторина</h1>
+      <button id="btn-admin" class="admin-btn" hidden title="Админ-панель">⚙</button>
     </div>
+    <p id="rating-display" class="hint" hidden></p>
     <div class="field">
       <label for="name-input">Ваше имя</label>
       <input id="name-input" maxlength="24" placeholder="Игрок" />
@@ -72,6 +74,17 @@
     <h1>Результаты</h1>
     <ol id="final-leaderboard" class="leaderboard"></ol>
     <button id="btn-restart" class="btn primary">На главный экран</button>
+  </section>
+
+  <section id="screen-banned" class="screen">
+    <h1>Доступ ограничен</h1>
+    <p class="hint">Вы забанены и не можете играть в викторину.</p>
+  </section>
+
+  <section id="screen-admin" class="screen">
+    <h1>Админ-панель</h1>
+    <ul id="admin-users" class="players-list"></ul>
+    <button id="btn-admin-back" class="btn">Назад</button>
   </section>
 
   <div id="confirm-modal" class="modal-overlay" hidden>
