@@ -275,8 +275,19 @@
           $('btn-admin').hidden = false;
         }
         // Opened via an invite link (?startapp=CODE) — join that room straight away
-        // instead of making them type the code in by hand.
-        if (startParam && !joinedViaStartParam && !resumedIntoRoom && /^[A-Za-z0-9]{5}$/.test(startParam)) {
+        // instead of making them type the code in by hand. MAX keeps re-supplying
+        // the same start_param on every reload within this session, so once the
+        // player deliberately leaves (leaveAndReload below), remember that and
+        // don't auto-rejoin them right back in.
+        let declinedStartParam = null;
+        try { declinedStartParam = sessionStorage.getItem('declined_start_param'); } catch (e) {}
+        if (
+          startParam &&
+          !joinedViaStartParam &&
+          !resumedIntoRoom &&
+          startParam !== declinedStartParam &&
+          /^[A-Za-z0-9]{5}$/.test(startParam)
+        ) {
           joinedViaStartParam = true;
           const name = (nameInput.value || 'Игрок').trim().slice(0, 24);
           send({ type: 'join_room', name, code: startParam.toUpperCase() });
@@ -642,6 +653,12 @@
     // Tell the server this is a deliberate exit, not a dropped connection —
     // otherwise the reconnect logic would resume us right back into the room.
     send({ type: 'leave_room' });
+    // Also remember we declined this invite link's room, so the start_param
+    // auto-join (MAX keeps resupplying it on every reload) doesn't pull us
+    // straight back in.
+    if (startParam) {
+      try { sessionStorage.setItem('declined_start_param', startParam); } catch (e) {}
+    }
     setTimeout(() => location.reload(), 80);
   }
 
