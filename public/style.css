@@ -216,6 +216,41 @@ h2 { font-size: 1.15rem; margin: 0 0 12px; }
   line-height: 1.4;
 }
 
+.review-list {
+  list-style: none;
+  padding: 0;
+  margin: 0 0 20px;
+}
+
+.review-list li {
+  background: var(--card);
+  border-left: 3px solid var(--wrong);
+  border-radius: 10px;
+  padding: 12px 14px;
+  margin-bottom: 10px;
+}
+
+.review-q {
+  font-size: .95rem;
+  font-weight: 600;
+  margin-bottom: 8px;
+}
+
+.review-line {
+  font-size: .85rem;
+  line-height: 1.5;
+}
+
+.review-line .review-yours { color: var(--wrong); }
+.review-line .review-right { color: var(--correct); }
+
+.review-explanation {
+  font-size: .82rem;
+  color: var(--muted);
+  margin-top: 8px;
+  font-style: italic;
+}
+
 label { display: block; font-size: .85rem; color: var(--muted); margin-bottom: 6px; }
 
 input, select {

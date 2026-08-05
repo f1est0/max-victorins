@@ -80,6 +80,7 @@ class Room {
       roundScoreDelta: 0,
       lastAnswerActualIndex: null,
       disconnectTimer: null,
+      answerHistory: [], // questions this player got wrong, for the end-of-game review
     });
   }
 
@@ -180,7 +181,10 @@ class Room {
   startGame() {
     if (this.state !== 'lobby') return;
     this.questionIndex = -1;
-    for (const p of this.players.values()) p.score = 0;
+    for (const p of this.players.values()) {
+      p.score = 0;
+      p.answerHistory = [];
+    }
     this.state = 'question';
     this.broadcast({ type: 'game_started' });
     this.nextQuestion();
@@ -192,7 +196,17 @@ class Room {
 
     if (this.questionIndex >= this.pack.questions.length) {
       this.state = 'finished';
-      this.broadcast({ type: 'game_over', leaderboard: this.leaderboard() });
+      // Sent per player rather than broadcast: the mistake review is personal.
+      const finalBoard = this.leaderboard();
+      for (const p of this.players.values()) {
+        if (p.isBot) continue;
+        this.sendTo(p.id, {
+          type: 'game_over',
+          leaderboard: finalBoard,
+          review: p.answerHistory,
+          totalQuestions: this.pack.questions.length,
+        });
+      }
       if (this.onGameOver) {
         this.onGameOver(
           Array.from(this.players.values()).map((p) => ({
@@ -326,6 +340,21 @@ class Room {
 
     for (const p of this.players.values()) {
       if (p.isBot) continue;
+
+      // Remember every question this player didn't get right (wrong answer or
+      // no answer at all) so the end-of-game screen can walk them through it.
+      if (p.lastAnswerActualIndex !== q.correctIndex) {
+        p.answerHistory.push({
+          number: this.questionIndex + 1,
+          text: q.text,
+          yourAnswer: p.lastAnswerActualIndex != null
+            ? optionLabel(q.options[p.lastAnswerActualIndex])
+            : null,
+          correctAnswer: optionLabel(q.options[q.correctIndex]),
+          explanation: q.explanation || null,
+        });
+      }
+
       const correctIndex = p.optionMap ? p.optionMap.indexOf(q.correctIndex) : q.correctIndex;
       this.sendTo(p.id, {
         type: 'question_end',

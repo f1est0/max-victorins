@@ -378,6 +378,10 @@ wss.on('connection', (ws) => {
           players: room.playersList(),
           leaderboard: room.leaderboard(),
         };
+        if (room.state === 'finished') {
+          payload.review = player.answerHistory;
+          payload.totalQuestions = room.pack.questions.length;
+        }
         if (room.state === 'question') {
           const remaining = Math.max(0, QUESTION_TIME_MS - (Date.now() - room.questionStartedAt));
           payload.current = room.questionPayloadFor(player, remaining);

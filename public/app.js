@@ -99,6 +99,7 @@
   let lastPlayerCount = 0;
   let resumedIntoRoom = false; // set by 'resumed' — blocks the start_param auto-join from stealing an existing session
   let joinedViaStartParam = false;
+  let lastGameRequest = null; // {mode, selection} of the last game started from this screen
 
   function send(msg) {
     if (ws.readyState === WebSocket.OPEN) ws.send(JSON.stringify(msg));
@@ -247,7 +248,7 @@
           if (msg.answered) restoreAnsweredState(msg.answered);
           showScreen('question');
         } else if (msg.state === 'finished') {
-          renderFinal(msg.leaderboard);
+          renderFinal(msg.leaderboard, msg.review, msg.totalQuestions);
           showScreen('final');
         } else {
           // Reconnected during the brief reveal window between questions —
@@ -344,6 +345,7 @@
         $('home-error').textContent = msg.message;
         $('lobby-error').textContent = msg.message;
         setRoomButtonsDisabled(false);
+        $('btn-play-again').disabled = false;
         break;
 
       case 'game_started':
@@ -373,7 +375,7 @@
         break;
 
       case 'game_over':
-        renderFinal(msg.leaderboard);
+        renderFinal(msg.leaderboard, msg.review, msg.totalQuestions);
         showScreen('final');
         break;
 
@@ -538,7 +540,7 @@
     }
   }
 
-  function renderFinal(leaderboard) {
+  function renderFinal(leaderboard, review, totalQuestions) {
     onQuestionScreen = false;
     renderLeaderboard('final-leaderboard', leaderboard);
 
@@ -550,6 +552,50 @@
       winnerEl.textContent = `🤝 Ничья: ${tied.join(', ')}`;
     } else {
       winnerEl.textContent = `🏆 Победитель: ${leaderboard[0].name}`;
+    }
+
+    renderReview(review, totalQuestions);
+
+    // Replaying only makes sense when you don't need anyone else to show up.
+    const canReplay = gameMode !== 'multiplayer' && lastGameRequest !== null;
+    $('btn-play-again').hidden = !canReplay;
+    $('btn-play-again').disabled = false;
+  }
+
+  function renderReview(review, totalQuestions) {
+    const block = $('review-block');
+    const list = $('review-list');
+    list.innerHTML = '';
+
+    if (!Array.isArray(review)) {
+      block.hidden = true;
+      return;
+    }
+
+    block.hidden = false;
+
+    if (review.length === 0) {
+      $('review-title').textContent = totalQuestions
+        ? `✅ Без ошибок, все ${totalQuestions} верно!`
+        : '✅ Без единой ошибки!';
+      return;
+    }
+
+    $('review-title').textContent = `📝 Разбор ошибок (${review.length})`;
+    for (const item of review) {
+      const li = document.createElement('li');
+      const yours = item.yourAnswer
+        ? `<span class="review-yours">${esc(item.yourAnswer)}</span>`
+        : '<span class="review-yours">не ответил</span>';
+      let html =
+        `<div class="review-q">${esc(item.number)}. ${esc(item.text)}</div>` +
+        `<div class="review-line">Ваш ответ: ${yours}<br>` +
+        `Правильный: <span class="review-right">${esc(item.correctAnswer)}</span></div>`;
+      if (item.explanation) {
+        html += `<div class="review-explanation">${esc(item.explanation)}</div>`;
+      }
+      li.innerHTML = html;
+      list.appendChild(li);
     }
   }
 
@@ -648,10 +694,12 @@
 
   function createRoom(mode) {
     const name = (nameInput.value || 'Игрок').trim().slice(0, 24);
+    const selection = buildSelection();
+    lastGameRequest = { mode, selection }; // remembered so "Играть снова" can repeat it
     localStorage.setItem('quiz_name', name);
     $('home-error').textContent = '';
     setRoomButtonsDisabled(true);
-    send({ type: 'create_room', name, selection: buildSelection(), mode });
+    send({ type: 'create_room', name, selection, mode });
   }
 
   $('btn-create').addEventListener('click', () => createRoom('multiplayer'));
@@ -695,6 +743,21 @@
   }
 
   $('btn-restart').addEventListener('click', leaveAndReload);
+
+  // Replays the last solo/bot game with the same topic and settings, so you
+  // don't have to walk back through the menu to pick everything again.
+  // The server vacates the finished room on create_room, no explicit leave needed.
+  $('btn-play-again').addEventListener('click', () => {
+    if (!lastGameRequest) return;
+    $('btn-play-again').disabled = true;
+    const name = (nameInput.value || 'Игрок').trim().slice(0, 24);
+    send({
+      type: 'create_room',
+      name,
+      selection: lastGameRequest.selection,
+      mode: lastGameRequest.mode,
+    });
+  });
 
   // --- Abort quiz (mid-game) ---
   $('btn-abort').addEventListener('click', () => {
