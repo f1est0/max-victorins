@@ -947,17 +947,19 @@
     switchRatingsTab('bot');
   });
 
-  $('play-toggle').addEventListener('click', () => {
-    const body = $('play-body');
-    body.hidden = !body.hidden;
-    $('play-toggle').querySelector('.topic-caret').textContent = body.hidden ? '▾' : '▴';
-  });
+  function wireToggle(toggleId, bodyId) {
+    const toggle = $(toggleId);
+    const body = $(bodyId);
+    toggle.addEventListener('click', () => {
+      body.hidden = !body.hidden;
+      toggle.querySelector('.topic-caret').textContent = body.hidden ? '▾' : '▴';
+    });
+  }
 
-  $('join-toggle').addEventListener('click', () => {
-    const body = $('join-body');
-    body.hidden = !body.hidden;
-    $('join-toggle').querySelector('.topic-caret').textContent = body.hidden ? '▾' : '▴';
-  });
+  wireToggle('play-toggle', 'play-body');
+  wireToggle('join-toggle', 'join-body');
+  wireToggle('dup-toggle', 'dup-body');
+  wireToggle('packs-toggle', 'packs-body');
 
   $('btn-multiplayer').addEventListener('click', () => {
     $('mp-error').textContent = '';

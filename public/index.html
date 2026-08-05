@@ -150,17 +150,21 @@
     <h1>Админ-панель</h1>
     <ul id="admin-users" class="players-list"></ul>
 
-    <h2>Дубликаты вопросов</h2>
-    <button id="btn-check-duplicates" class="btn">🔍 Проверить дубликаты</button>
-    <p id="duplicates-empty" class="hint centered" hidden>Дубликатов не найдено.</p>
-    <ul id="duplicates-list" class="review-list"></ul>
+    <button id="dup-toggle" class="btn join-toggle-btn section-gap" type="button">Дубликаты вопросов <span class="topic-caret">▾</span></button>
+    <div id="dup-body" class="card" hidden>
+      <button id="btn-check-duplicates" class="btn">🔍 Проверить дубликаты</button>
+      <p id="duplicates-empty" class="hint centered" hidden>Дубликатов не найдено.</p>
+      <ul id="duplicates-list" class="review-list"></ul>
+    </div>
 
-    <h2>Паки пользователей</h2>
-    <button id="btn-list-custom-packs" class="btn">📚 Показать паки пользователей</button>
-    <p id="admin-custom-packs-empty" class="hint centered" hidden>Пользовательских паков пока нет.</p>
-    <div id="admin-custom-packs-list"></div>
+    <button id="packs-toggle" class="btn join-toggle-btn" type="button">Паки пользователей <span class="topic-caret">▾</span></button>
+    <div id="packs-body" class="card" hidden>
+      <button id="btn-list-custom-packs" class="btn">📚 Показать паки пользователей</button>
+      <p id="admin-custom-packs-empty" class="hint centered" hidden>Пользовательских паков пока нет.</p>
+      <div id="admin-custom-packs-list"></div>
+    </div>
 
-    <button id="btn-admin-back" class="btn section-gap">Назад</button>
+    <button id="btn-admin-back" class="btn">Назад</button>
   </section>
 
   <section id="screen-profile" class="screen">

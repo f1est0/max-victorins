@@ -32,6 +32,28 @@ function isAdminId(id) {
   return id != null && ADMIN_USER_IDS.includes(String(id));
 }
 
+// Shared by the initial 'auth' handshake and anything that changes a
+// currently-connected player's own stats (e.g. an admin resetting their own
+// account) — so their home screen shows fresh numbers without a reload.
+function buildAuthResultPayload(profile) {
+  return {
+    type: 'auth_result',
+    ok: true,
+    banned: profile.banned,
+    isAdmin: isAdminId(profile.id),
+    name: [profile.firstName, profile.lastName].filter(Boolean).join(' ').trim(),
+    photoUrl: profile.photoUrl || null,
+    profile: {
+      rating: profile.rating,
+      gamesPlayed: profile.gamesPlayed,
+      wins: profile.wins,
+      losses: profile.losses,
+      ratingVsBot: profile.ratingVsBot,
+      botGamesPlayed: profile.botGamesPlayed,
+    },
+  };
+}
+
 // Verified players always play under their real MAX name — the client can't
 // override it by sending a different `name` in the message. Only unverified
 // guests (testing outside MAX, no signed initData) fall back to whatever
@@ -532,22 +554,7 @@ wss.on('connection', (ws) => {
           return;
         }
         authedProfile = store.getOrCreate(result.user);
-        ws.send(JSON.stringify({
-          type: 'auth_result',
-          ok: true,
-          banned: authedProfile.banned,
-          isAdmin: isAdminId(authedProfile.id),
-          name: [authedProfile.firstName, authedProfile.lastName].filter(Boolean).join(' ').trim(),
-          photoUrl: authedProfile.photoUrl || null,
-          profile: {
-            rating: authedProfile.rating,
-            gamesPlayed: authedProfile.gamesPlayed,
-            wins: authedProfile.wins,
-            losses: authedProfile.losses,
-            ratingVsBot: authedProfile.ratingVsBot,
-            botGamesPlayed: authedProfile.botGamesPlayed,
-          },
-        }));
+        ws.send(JSON.stringify(buildAuthResultPayload(authedProfile)));
         break;
       }
 
@@ -735,7 +742,16 @@ wss.on('connection', (ws) => {
       case 'admin_reset_stats': {
         if (!authedProfile || !isAdminId(authedProfile.id)) return;
         const updated = store.resetStats(msg.userId);
-        if (updated) ws.send(JSON.stringify({ type: 'admin_users', users: store.list() }));
+        if (updated) {
+          ws.send(JSON.stringify({ type: 'admin_users', users: store.list() }));
+          // Resetting your own account: refresh this connection's own cached
+          // profile too, otherwise the home screen keeps showing old numbers
+          // until the next reload/reconnect.
+          if (String(updated.id) === String(authedProfile.id)) {
+            authedProfile = updated;
+            ws.send(JSON.stringify(buildAuthResultPayload(authedProfile)));
+          }
+        }
         break;
       }
 
