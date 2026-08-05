@@ -264,7 +264,12 @@
         showPlayArea();
         if (msg.profile) {
           $('rating-display').hidden = false;
-          $('rating-display').textContent = `Рейтинг: ${msg.profile.rating} · игр сыграно: ${msg.profile.gamesPlayed}`;
+          // Matchmaking rating isn't live yet (always 1000/0), so the bot rating
+          // is shown first — it's the one with real numbers behind it right now.
+          // A friends-rating line can slot in here the same way once that exists.
+          $('rating-display').innerHTML =
+            `🤖 Против бота: ${msg.profile.ratingVsBot} · игр: ${msg.profile.botGamesPlayed}<br>` +
+            `🏆 Рейтинг: ${msg.profile.rating} · игр: ${msg.profile.gamesPlayed}`;
         }
         if (msg.isAdmin) {
           $('btn-admin').hidden = false;

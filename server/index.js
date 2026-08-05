@@ -397,6 +397,8 @@ wss.on('connection', (ws) => {
             gamesPlayed: authedProfile.gamesPlayed,
             wins: authedProfile.wins,
             losses: authedProfile.losses,
+            ratingVsBot: authedProfile.ratingVsBot,
+            botGamesPlayed: authedProfile.botGamesPlayed,
           },
         }));
         break;
