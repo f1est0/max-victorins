@@ -761,8 +761,9 @@
       actions.className = 'admin-user-actions';
 
       const btn = document.createElement('button');
-      btn.className = 'ban-btn' + (u.banned ? ' unban' : '');
-      btn.textContent = u.banned ? 'Разбанить' : 'Забанить';
+      btn.className = 'ban-btn icon-btn' + (u.banned ? ' unban' : '');
+      btn.textContent = u.banned ? '✅' : '🚫';
+      btn.title = u.banned ? 'Разбанить' : 'Забанить';
       btn.addEventListener('click', () => {
         send({ type: 'admin_set_banned', userId: u.id, banned: !u.banned });
       });
