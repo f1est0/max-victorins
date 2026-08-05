@@ -59,9 +59,11 @@
       </div>
 
       <div class="card">
-        <h2>Присоединиться</h2>
-        <input id="code-input" maxlength="5" placeholder="КОД КОМНАТЫ" style="text-transform:uppercase" />
-        <button id="btn-join" class="btn">Войти по коду</button>
+        <h2 id="join-toggle" class="collapsible-header">Присоединиться<span class="topic-caret">▾</span></h2>
+        <div id="join-body" hidden>
+          <input id="code-input" maxlength="5" placeholder="КОД КОМНАТЫ" style="text-transform:uppercase" />
+          <button id="btn-join" class="btn">Войти по коду</button>
+        </div>
       </div>
 
       <button id="btn-ratings" class="btn">🏆 Рейтинги</button>

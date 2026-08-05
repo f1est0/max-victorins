@@ -691,6 +691,9 @@
     const container = $('profile-topics');
     container.innerHTML = '';
     $('profile-topics-empty').hidden = categories.length > 0;
+    // Accordion: opening one category's subtopic list collapses whichever was open before,
+    // so the profile doesn't turn into one long wall of lists as more topics get played.
+    let openEntry = null;
     categories.forEach((cat) => {
       const pct = cat.total ? Math.round((cat.correct / cat.total) * 100) : 0;
       const card = document.createElement('div');
@@ -715,8 +718,14 @@
       });
       card.appendChild(sub);
       row.addEventListener('click', () => {
-        sub.hidden = !sub.hidden;
-        row.querySelector('.topic-caret').textContent = sub.hidden ? '▾' : '▴';
+        const opening = sub.hidden;
+        if (openEntry && openEntry.sub !== sub) {
+          openEntry.sub.hidden = true;
+          openEntry.row.querySelector('.topic-caret').textContent = '▾';
+        }
+        sub.hidden = !opening;
+        row.querySelector('.topic-caret').textContent = opening ? '▴' : '▾';
+        openEntry = opening ? { sub, row } : null;
       });
 
       container.appendChild(card);
@@ -736,6 +745,12 @@
   $('btn-ratings').addEventListener('click', () => {
     showScreen('ratings');
     switchRatingsTab('bot');
+  });
+
+  $('join-toggle').addEventListener('click', () => {
+    const body = $('join-body');
+    body.hidden = !body.hidden;
+    $('join-toggle').querySelector('.topic-caret').textContent = body.hidden ? '▾' : '▴';
   });
 
   $('btn-ratings-back').addEventListener('click', () => showScreen('home'));
