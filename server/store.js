@@ -19,13 +19,49 @@ function load() {
   }
 }
 
-function save() {
+const SAVE_DEBOUNCE_MS = 2000;
+let saveTimer = null;
+let dirty = false;
+
+function writeNow() {
+  if (!dirty) return;
   if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true });
   // Write to a temp file and rename over the original — rename is atomic on
   // POSIX, so a crash mid-write can never leave users.json half-written/corrupt.
   const tmpFile = `${DATA_FILE}.${process.pid}.tmp`;
   fs.writeFileSync(tmpFile, JSON.stringify(users, null, 2));
   fs.renameSync(tmpFile, DATA_FILE);
+  dirty = false;
+}
+
+// Marks the store dirty and schedules one write shortly after. Without this,
+// every single connection rewrote the whole file synchronously (getOrCreate
+// touches lastSeenAt on each auth), which blocks the event loop as the user
+// count grows. flush() below runs on shutdown so nothing is lost on restart.
+function save() {
+  dirty = true;
+  if (saveTimer) return;
+  saveTimer = setTimeout(() => {
+    saveTimer = null;
+    try {
+      writeNow();
+    } catch (e) {
+      console.error('[store] save failed:', e.message);
+    }
+  }, SAVE_DEBOUNCE_MS);
+  if (saveTimer.unref) saveTimer.unref();
+}
+
+function flush() {
+  if (saveTimer) {
+    clearTimeout(saveTimer);
+    saveTimer = null;
+  }
+  try {
+    writeNow();
+  } catch (e) {
+    console.error('[store] flush failed:', e.message);
+  }
 }
 
 load();
@@ -172,5 +208,6 @@ module.exports = {
   applyAbortPenalty,
   applyBotResult,
   listBotLeaderboard,
+  flush,
   DEFAULT_RATING,
 };

@@ -381,6 +381,20 @@ wss.on('connection', (ws) => {
         if (room.state === 'question') {
           const remaining = Math.max(0, QUESTION_TIME_MS - (Date.now() - room.questionStartedAt));
           payload.current = room.questionPayloadFor(player, remaining);
+          // If they'd already answered before dropping, replay that so the
+          // question doesn't come back looking untouched and clickable.
+          // The correct answer is safe to resend: they were told it the moment
+          // they answered, via answer_result.
+          if (player.answered !== null) {
+            const q = room.currentQuestion();
+            payload.answered = {
+              optionIndex: player.answered,
+              correct: player.lastAnswerActualIndex === q.correctIndex,
+              correctIndex: player.optionMap
+                ? player.optionMap.indexOf(q.correctIndex)
+                : q.correctIndex,
+            };
+          }
         }
         ws.send(JSON.stringify(payload));
         break;
@@ -540,6 +554,20 @@ wss.on('connection', (ws) => {
   ws.on('close', leaveCurrentRoom);
   ws.on('error', leaveCurrentRoom);
 });
+
+// Saves are debounced, so make sure anything still pending hits the disk before
+// the process goes away (systemd sends SIGTERM on restart/stop).
+let shuttingDown = false;
+function shutdown(signal) {
+  if (shuttingDown) return;
+  shuttingDown = true;
+  store.flush();
+  console.log(`Received ${signal}, user store flushed, exiting.`);
+  process.exit(0);
+}
+process.on('SIGTERM', () => shutdown('SIGTERM'));
+process.on('SIGINT', () => shutdown('SIGINT'));
+process.on('exit', () => store.flush());
 
 server.listen(PORT, '127.0.0.1', () => {
   console.log(`Quiz server listening on 127.0.0.1:${PORT}`);

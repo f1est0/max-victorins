@@ -244,6 +244,7 @@
           showScreen('lobby');
         } else if (msg.state === 'question' && msg.current) {
           renderQuestion(msg.current);
+          if (msg.answered) restoreAnsweredState(msg.answered);
           showScreen('question');
         } else if (msg.state === 'finished') {
           renderFinal(msg.leaderboard);
@@ -487,6 +488,17 @@
       if (i === res.correctIndex) b.classList.add('correct');
       else if (i === currentOptionIndex) b.classList.add('wrong');
     });
+  }
+
+  // Reconnected mid-question having already answered: put the board back the way
+  // they left it, so the options aren't clickable again and the result is visible.
+  function restoreAnsweredState(answered) {
+    currentOptionIndex = answered.optionIndex;
+    const buttons = document.querySelectorAll('#q-options .opt-btn');
+    buttons.forEach((b) => b.classList.add('disabled'));
+    const chosen = buttons[answered.optionIndex];
+    if (chosen) chosen.style.outline = '2px solid var(--accent)';
+    markOwnAnswer(answered);
   }
 
   function renderReveal(msg) {

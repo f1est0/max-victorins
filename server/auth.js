@@ -41,11 +41,9 @@ function verifyInitData(initData) {
     crypto.timingSafeEqual(Buffer.from(computedHash), Buffer.from(receivedHash));
 
   if (!ok) {
-    console.warn('[auth] initData hash mismatch — algorithm may need adjustment', {
-      dataCheckString,
-      computedHash,
-      receivedHash,
-    });
+    // Deliberately does not log dataCheckString or the user object — those carry
+    // the player's id, name, IP and avatar URL straight into journalctl.
+    console.warn('[auth] initData hash mismatch');
     return { ok: false, reason: 'bad_hash' };
   }
 
