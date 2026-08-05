@@ -783,6 +783,12 @@
     switchRatingsTab('bot');
   });
 
+  $('play-toggle').addEventListener('click', () => {
+    const body = $('play-body');
+    body.hidden = !body.hidden;
+    $('play-toggle').querySelector('.topic-caret').textContent = body.hidden ? '▾' : '▴';
+  });
+
   $('join-toggle').addEventListener('click', () => {
     const body = $('join-body');
     body.hidden = !body.hidden;

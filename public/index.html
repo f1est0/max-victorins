@@ -37,8 +37,10 @@
         <input id="name-input" maxlength="24" placeholder="Игрок" />
       </div>
 
-      <div class="card">
-        <h2>Играть</h2>
+      <button id="btn-multiplayer" class="btn primary join-toggle-btn">🎮 Мультиплеер</button>
+
+      <button id="play-toggle" class="btn join-toggle-btn" type="button">Играть <span class="topic-caret">▾</span></button>
+      <div id="play-body" class="card" hidden>
         <label for="topic-select">Тема</label>
         <select id="topic-select"></select>
 
@@ -62,8 +64,6 @@
         <input id="code-input" maxlength="5" placeholder="КОД КОМНАТЫ" style="text-transform:uppercase" />
         <button id="btn-join" class="btn">Войти по коду</button>
       </div>
-
-      <button id="btn-multiplayer" class="btn primary">🎮 Мультиплеер</button>
 
       <button id="btn-ratings" class="btn">🏆 Рейтинги</button>
 
