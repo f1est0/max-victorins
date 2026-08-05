@@ -313,10 +313,9 @@
           showScreen('final');
         } else {
           // Reconnected during the brief reveal window between questions —
-          // show the leaderboard and wait for the next 'question' broadcast.
+          // just wait for the next 'question' broadcast.
           $('reveal-title').textContent = 'Переподключение…';
           $('reveal-answers').innerHTML = '';
-          renderLeaderboard('reveal-leaderboard', msg.leaderboard);
           showScreen('reveal');
         }
         break;
@@ -621,7 +620,6 @@
 
     $('reveal-title').textContent = 'Правильный ответ дали';
     renderRoundAnswers(msg.roundResults || []);
-    renderLeaderboard('reveal-leaderboard', msg.leaderboard);
 
     const revealDeadline = Date.now() + (msg.revealTimeMs || 4000);
     function updateRevealCountdown() {

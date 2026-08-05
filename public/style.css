@@ -554,7 +554,9 @@ input[type="number"]::-webkit-inner-spin-button {
   gap: 6px;
   padding: 10px;
   border-radius: 12px;
-  min-width: 74px;
+  box-sizing: border-box;
+  flex: 0 1 calc(33.333% - 7px);
+  max-width: calc(33.333% - 7px);
 }
 
 .answer-square-correct { background: var(--correct); color: #06210f; }
