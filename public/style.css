@@ -288,6 +288,41 @@ h2 { font-size: 1.15rem; margin: 0 0 12px; }
   animation: fade .25s ease;
 }
 
+.section-gap {
+  margin-top: 28px;
+}
+
+.code-sample {
+  background: #12151a;
+  border: 1px solid #2c303a;
+  border-radius: 10px;
+  padding: 12px 14px;
+  font-size: .78rem;
+  line-height: 1.5;
+  color: var(--text);
+  overflow-x: auto;
+  white-space: pre;
+  margin: 0 0 12px;
+}
+
+.pb-option-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.pb-option-row input[type="radio"] {
+  width: auto;
+  flex-shrink: 0;
+  margin: 0 0 10px 0;
+  align-self: flex-start;
+  margin-top: 14px;
+}
+
+.pb-option-row input:not([type="radio"]) {
+  flex: 1;
+}
+
 .announcement {
   background: linear-gradient(135deg, var(--accent), var(--accent-dark));
   color: #fff;

@@ -175,15 +175,83 @@
     <div id="profile-topics"></div>
     <p id="profile-topics-empty" class="hint centered" hidden>Пока нет сыгранных вопросов по темам.</p>
 
-    <h2 class="centered">Мои паки</h2>
+    <h2 class="centered section-gap">Мои паки</h2>
     <ul id="my-packs-list" class="players-list"></ul>
     <p id="my-packs-empty" class="hint centered" hidden>Вы ещё не добавили свои паки.</p>
-    <input id="custom-pack-file" type="file" accept="application/json,.json" hidden />
-    <button id="btn-add-pack" class="btn">➕ Добавить пак (JSON-файл)</button>
-    <p id="custom-pack-error" class="error"></p>
-    <p class="hint">Файл — как обычный пак вопросов: {"title": "...", "questions": [{"text": "...", "options": ["...", "...", "...", "..."], "correctIndex": 0}]}. Виден только вам, доступен при создании комнаты для игры с друзьями.</p>
+    <div class="btn-row">
+      <button id="btn-open-pack-upload" class="btn">📄 Добавить пак</button>
+      <button id="btn-open-pack-builder" class="btn">✍️ Добавить вручную</button>
+    </div>
 
     <button id="btn-profile-back" class="btn">Назад</button>
+  </section>
+
+  <section id="screen-pack-upload" class="screen">
+    <h1>Добавить пак</h1>
+    <div class="card">
+      <p class="hint">Загрузите JSON-файл в таком формате:</p>
+      <pre class="code-sample">{
+  "title": "Название пака",
+  "questions": [
+    {
+      "text": "Текст вопроса?",
+      "options": ["Вариант 1", "Вариант 2", "Вариант 3", "Вариант 4"],
+      "correctIndex": 0
+    }
+  ]
+}</pre>
+      <p class="hint">"correctIndex" — номер правильного варианта, считая с нуля (0 — первый). Нужно минимум 10 вопросов, максимум 100.</p>
+      <p class="hint">Пак виден только вам и доступен при создании комнаты для игры с друзьями.</p>
+      <input id="custom-pack-file" type="file" accept="application/json,.json" hidden />
+      <button id="btn-add-pack" class="btn primary">Выбрать файл</button>
+    </div>
+    <p id="custom-pack-error" class="error"></p>
+    <button id="btn-pack-upload-back" class="btn">Назад</button>
+  </section>
+
+  <section id="screen-pack-builder" class="screen">
+    <h1>Добавить пак вручную</h1>
+
+    <div class="card">
+      <label for="pb-title">Название пака</label>
+      <input id="pb-title" maxlength="60" placeholder="Например: Вопросы про наш класс" />
+    </div>
+
+    <div class="card">
+      <h2>Вопрос <span id="pb-question-number">1</span></h2>
+      <label for="pb-question-text">Текст вопроса</label>
+      <input id="pb-question-text" maxlength="400" placeholder="Введите вопрос" />
+
+      <label>Варианты ответа (отметьте кружком правильный)</label>
+      <div class="pb-option-row">
+        <input type="radio" name="pb-correct" value="0" checked />
+        <input id="pb-option-0" maxlength="200" placeholder="Вариант 1" />
+      </div>
+      <div class="pb-option-row">
+        <input type="radio" name="pb-correct" value="1" />
+        <input id="pb-option-1" maxlength="200" placeholder="Вариант 2" />
+      </div>
+      <div class="pb-option-row">
+        <input type="radio" name="pb-correct" value="2" />
+        <input id="pb-option-2" maxlength="200" placeholder="Вариант 3" />
+      </div>
+      <div class="pb-option-row">
+        <input type="radio" name="pb-correct" value="3" />
+        <input id="pb-option-3" maxlength="200" placeholder="Вариант 4" />
+      </div>
+
+      <button id="btn-pb-add-question" class="btn">➕ Добавить вопрос</button>
+    </div>
+
+    <p id="pb-count" class="hint centered">Добавлено вопросов: 0 (нужно минимум 10)</p>
+    <ul id="pb-questions-list" class="players-list"></ul>
+
+    <p id="pb-error" class="error"></p>
+
+    <div class="btn-row">
+      <button id="btn-pb-save" class="btn primary" disabled>💾 Сохранить пак</button>
+      <button id="btn-pb-back" class="btn">Назад</button>
+    </div>
   </section>
 
   <section id="screen-ratings" class="screen">

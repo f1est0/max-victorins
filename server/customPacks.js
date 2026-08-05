@@ -5,6 +5,7 @@ const DATA_DIR = path.join(__dirname, '..', 'data');
 const DATA_FILE = path.join(DATA_DIR, 'custom-packs.json');
 
 const MAX_PACKS_PER_USER = 10;
+const MIN_QUESTIONS_PER_PACK = 10;
 const MAX_QUESTIONS_PER_PACK = 100;
 
 let packs = {}; // packId -> { id, ownerId, title, questions, createdAt }
@@ -77,6 +78,9 @@ function validatePack(raw) {
   if (!title) return { ok: false, error: 'Укажите название пака' };
   if (!Array.isArray(raw.questions) || raw.questions.length === 0) {
     return { ok: false, error: 'Нет вопросов' };
+  }
+  if (raw.questions.length < MIN_QUESTIONS_PER_PACK) {
+    return { ok: false, error: `Нужно минимум ${MIN_QUESTIONS_PER_PACK} вопросов в паке` };
   }
   if (raw.questions.length > MAX_QUESTIONS_PER_PACK) {
     return { ok: false, error: `Максимум ${MAX_QUESTIONS_PER_PACK} вопросов в паке` };

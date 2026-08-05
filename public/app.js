@@ -29,7 +29,7 @@
       .replace(/"/g, '&quot;')
       .replace(/'/g, '&#39;');
   }
-  const screens = ['home', 'lobby', 'question', 'reveal', 'final', 'banned', 'admin', 'ratings', 'profile', 'multiplayer'];
+  const screens = ['home', 'lobby', 'question', 'reveal', 'final', 'banned', 'admin', 'ratings', 'profile', 'multiplayer', 'pack-upload', 'pack-builder'];
   const ABORTABLE_SCREENS = ['question', 'reveal'];
   const BACK_SCREENS = ['lobby'];
   function showScreen(name) {
@@ -393,12 +393,19 @@
         mpSelection.populateTopics();
         break;
 
-      case 'custom_pack_result':
-        $('custom-pack-error').textContent = msg.ok ? '' : (msg.error || 'Не удалось добавить пак');
+      case 'custom_pack_result': {
+        const errorText = msg.ok ? '' : (msg.error || 'Не удалось добавить пак');
+        $('custom-pack-error').textContent = errorText;
+        $('pb-error').textContent = errorText;
         myCustomPacks = msg.packs;
         renderMyPacks(msg.packs);
         mpSelection.populateTopics();
+        if (msg.ok) {
+          pbResetAll();
+          showScreen('profile');
+        }
         break;
+      }
 
       case 'admin_custom_packs':
         renderAdminCustomPacks(msg.packs);
@@ -943,6 +950,12 @@
     showScreen('admin');
   });
 
+  $('btn-open-pack-upload').addEventListener('click', () => {
+    $('custom-pack-error').textContent = '';
+    showScreen('pack-upload');
+  });
+  $('btn-pack-upload-back').addEventListener('click', () => showScreen('profile'));
+
   $('btn-add-pack').addEventListener('click', () => $('custom-pack-file').click());
   $('custom-pack-file').addEventListener('change', () => {
     const file = $('custom-pack-file').files[0];
@@ -964,6 +977,87 @@
       $('custom-pack-error').textContent = 'Не удалось прочитать файл';
     };
     reader.readAsText(file);
+  });
+
+  // --- Manual pack builder: walks the player through one question at a time ---
+  let pbQuestions = [];
+
+  function pbUpdateCount() {
+    $('pb-count').textContent = `Добавлено вопросов: ${pbQuestions.length} (нужно минимум 10)`;
+    $('btn-pb-save').disabled = pbQuestions.length < 10;
+  }
+
+  function pbRenderList() {
+    const ul = $('pb-questions-list');
+    ul.innerHTML = '';
+    pbQuestions.forEach((q, i) => {
+      const li = document.createElement('li');
+      const info = document.createElement('span');
+      info.textContent = `${i + 1}. ${q.text}`;
+      const btn = document.createElement('button');
+      btn.className = 'ban-btn';
+      btn.textContent = 'Удалить';
+      btn.addEventListener('click', () => {
+        pbQuestions.splice(i, 1);
+        pbRenderList();
+        pbUpdateCount();
+      });
+      li.appendChild(info);
+      li.appendChild(btn);
+      ul.appendChild(li);
+    });
+  }
+
+  function pbResetForm() {
+    $('pb-question-text').value = '';
+    for (let i = 0; i < 4; i++) $(`pb-option-${i}`).value = '';
+    document.querySelector('input[name="pb-correct"][value="0"]').checked = true;
+    $('pb-question-number').textContent = pbQuestions.length + 1;
+  }
+
+  function pbResetAll() {
+    pbQuestions = [];
+    $('pb-title').value = '';
+    $('pb-error').textContent = '';
+    pbRenderList();
+    pbUpdateCount();
+    pbResetForm();
+  }
+
+  $('btn-open-pack-builder').addEventListener('click', () => {
+    pbResetAll();
+    showScreen('pack-builder');
+  });
+  $('btn-pb-back').addEventListener('click', () => showScreen('profile'));
+
+  $('btn-pb-add-question').addEventListener('click', () => {
+    const text = $('pb-question-text').value.trim();
+    const options = [0, 1, 2, 3].map((i) => $(`pb-option-${i}`).value.trim());
+    const correctIndex = Number(document.querySelector('input[name="pb-correct"]:checked').value);
+    if (!text) {
+      $('pb-error').textContent = 'Введите текст вопроса';
+      return;
+    }
+    if (options.some((o) => !o)) {
+      $('pb-error').textContent = 'Заполните все 4 варианта ответа';
+      return;
+    }
+    $('pb-error').textContent = '';
+    pbQuestions.push({ text, options, correctIndex });
+    pbRenderList();
+    pbUpdateCount();
+    pbResetForm();
+  });
+
+  $('btn-pb-save').addEventListener('click', () => {
+    const title = $('pb-title').value.trim();
+    if (!title) {
+      $('pb-error').textContent = 'Укажите название пака';
+      return;
+    }
+    if (pbQuestions.length < 10) return;
+    $('pb-error').textContent = '';
+    send({ type: 'add_custom_pack', title, questions: pbQuestions });
   });
 
   $('btn-list-custom-packs').addEventListener('click', () => {
