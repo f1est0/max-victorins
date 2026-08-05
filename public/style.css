@@ -480,6 +480,12 @@ input[type="number"]::-webkit-inner-spin-button {
 
 .admin-user-actions { display: flex; gap: 8px; flex-shrink: 0; }
 
+.icon-btn {
+  padding: 6px 10px;
+  font-size: 1rem;
+  line-height: 1;
+}
+
 .admin-user-info { display: flex; flex-direction: column; }
 .admin-user-info .admin-user-meta { color: var(--muted); font-size: .78rem; }
 

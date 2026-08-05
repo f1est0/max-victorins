@@ -768,8 +768,9 @@
       });
 
       const resetBtn = document.createElement('button');
-      resetBtn.className = 'ban-btn';
-      resetBtn.textContent = 'Сбросить статистику';
+      resetBtn.className = 'ban-btn icon-btn';
+      resetBtn.textContent = '🔄';
+      resetBtn.title = 'Сбросить статистику';
       resetBtn.addEventListener('click', () => {
         openConfirm(
           `Сбросить всю статистику игрока «${displayName}»? Рейтинги и счётчики игр обнулятся, забаненность не изменится.`,
