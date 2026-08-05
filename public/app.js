@@ -859,7 +859,7 @@
       const row = document.createElement('div');
       row.className = 'topic-row expandable';
       row.innerHTML =
-        `<span class="topic-name">${esc(p.ownerName)} — ${esc(p.title)}</span>` +
+        `<span class="topic-name">${esc(p.ownerName)}: ${esc(p.title)}</span>` +
         `<span class="topic-pct">${esc(p.count)} вопросов</span>` +
         `<span class="topic-caret">▾</span>`;
       card.appendChild(row);

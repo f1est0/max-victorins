@@ -107,8 +107,9 @@ html, body {
   to { opacity: 1; transform: translateY(0); }
 }
 
-h1 { font-size: 1.6rem; margin: 0 0 16px; }
-h2 { font-size: 1.15rem; margin: 0 0 12px; }
+h1 { font-size: 1.6rem; margin: 0 0 16px; text-align: center; }
+h2 { font-size: 1.15rem; margin: 0 0 12px; text-align: center; }
+#q-text { text-align: left; } /* question text reads better left-aligned during play */
 
 .btn-row {
   display: grid;

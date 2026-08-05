@@ -91,7 +91,7 @@
     </div>
 
     <button id="btn-rated" class="btn" disabled>🔒 Играть рейтинг</button>
-    <p class="hint centered">Скоро — подбор соперника по рейтингу</p>
+    <p class="hint centered">Скоро: подбор соперника по рейтингу</p>
 
     <p id="mp-error" class="error"></p>
 
@@ -171,11 +171,11 @@
     </div>
     <p id="profile-rating" class="hint centered"></p>
 
-    <h2 class="centered">Статистика по темам</h2>
+    <h2>Статистика по темам</h2>
     <div id="profile-topics"></div>
     <p id="profile-topics-empty" class="hint centered" hidden>Пока нет сыгранных вопросов по темам.</p>
 
-    <h2 class="centered section-gap">Мои паки</h2>
+    <h2 class="section-gap">Мои паки</h2>
     <ul id="my-packs-list" class="players-list"></ul>
     <p id="my-packs-empty" class="hint centered" hidden>Вы ещё не добавили свои паки.</p>
     <div class="btn-row">
@@ -200,7 +200,7 @@
     }
   ]
 }</pre>
-      <p class="hint">"correctIndex" — номер правильного варианта, считая с нуля (0 — первый). Нужно минимум 10 вопросов, максимум 100.</p>
+      <p class="hint">"correctIndex": номер правильного варианта, считая с нуля (0 = первый вариант). Нужно минимум 10 вопросов, максимум 100.</p>
       <p class="hint">Пак виден только вам и доступен при создании комнаты для игры с друзьями.</p>
       <input id="custom-pack-file" type="file" accept="application/json,.json" hidden />
       <button id="btn-add-pack" class="btn primary">Выбрать файл</button>
