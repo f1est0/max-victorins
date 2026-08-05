@@ -233,6 +233,96 @@ function buildEffectivePack(selection) {
 let { packs, categoryMeta } = loadPacks();
 const rooms = new RoomManager();
 
+// Flags exact-duplicate questions (same text, ignoring case/punctuation) across
+// every loaded pack, so a copy-pasted question doesn't silently double a topic's
+// question count. Fuzzy/near-duplicate matching is intentionally out of scope —
+// exact-normalized matching is what would have caught real past duplicates
+// without false-positiving on two genuinely different questions that just share
+// some wording.
+function normalizeQuestionText(text) {
+  return String(text || '')
+    .toLowerCase()
+    .replace(/[^\p{L}\p{N}\s]/gu, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+function findDuplicateQuestions() {
+  const byText = new Map();
+  for (const [packId, pack] of Object.entries(packs)) {
+    pack.questions.forEach((q, idx) => {
+      const norm = normalizeQuestionText(q.text);
+      if (!norm) return;
+      if (!byText.has(norm)) byText.set(norm, []);
+      byText.get(norm).push({ packId, packTitle: pack.title, index: idx + 1, text: q.text });
+    });
+  }
+  return Array.from(byText.values()).filter((locations) => locations.length > 1);
+}
+
+function logDuplicates() {
+  const dupes = findDuplicateQuestions();
+  if (dupes.length === 0) {
+    console.log('[packs] no duplicate questions found');
+    return;
+  }
+  console.warn(`[packs] found ${dupes.length} duplicate question group(s):`);
+  for (const group of dupes) {
+    console.warn(`  "${group[0].text}" -> ${group.map((g) => `${g.packTitle} #${g.index}`).join(', ')}`);
+  }
+}
+
+logDuplicates();
+
+// Watches questions/ (including subfolders, added manually since Node's
+// fs.watch recursive option isn't reliable on Linux) and hot-reloads packs on
+// any change, so a new/edited pack file just needs uploading — no restart.
+const watchedDirs = new Set();
+let reloadTimer = null;
+
+function reloadPacks() {
+  try {
+    const result = loadPacks();
+    packs = result.packs;
+    categoryMeta = result.categoryMeta;
+    console.log(`[packs] reloaded: ${Object.keys(packs).length} pack(s)`);
+    logDuplicates();
+  } catch (e) {
+    console.error('[packs] reload failed, keeping previous packs:', e.message);
+  }
+}
+
+function scheduleReload() {
+  clearTimeout(reloadTimer);
+  reloadTimer = setTimeout(() => {
+    reloadTimer = null;
+    watchAllDirs(); // pick up any newly created subfolders too
+    reloadPacks();
+  }, 700); // debounce: an upload of several files fires several fs events
+}
+
+function watchDir(dir) {
+  if (watchedDirs.has(dir)) return;
+  try {
+    const watcher = fs.watch(dir, () => scheduleReload());
+    watcher.on('error', () => watchedDirs.delete(dir)); // e.g. dir got removed
+    watchedDirs.add(dir);
+  } catch (e) {
+    console.error(`[packs] failed to watch ${dir}:`, e.message);
+  }
+}
+
+function watchAllDirs() {
+  (function walk(dir) {
+    watchDir(dir);
+    for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+      if (entry.isDirectory()) walk(path.join(dir, entry.name));
+    }
+  })(QUESTIONS_DIR);
+}
+
+watchAllDirs();
+
 function serveStatic(req, res) {
   let reqPath = decodeURIComponent(req.url.split('?')[0]);
   if (reqPath === '/') reqPath = '/index.html';
@@ -559,6 +649,12 @@ wss.on('connection', (ws) => {
       case 'get_bot_leaderboard': {
         if (!authedProfile) return;
         ws.send(JSON.stringify({ type: 'bot_leaderboard', entries: store.listBotLeaderboard() }));
+        break;
+      }
+
+      case 'admin_check_duplicates': {
+        if (!authedProfile || !isAdminId(authedProfile.id)) return;
+        ws.send(JSON.stringify({ type: 'duplicate_report', groups: findDuplicateQuestions() }));
         break;
       }
 

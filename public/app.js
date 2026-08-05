@@ -335,6 +335,10 @@
         renderAdminUsers(msg.users);
         break;
 
+      case 'duplicate_report':
+        renderDuplicates(msg.groups);
+        break;
+
       case 'bot_leaderboard':
         renderBotLeaderboard(msg.entries);
         break;
@@ -655,6 +659,20 @@
     });
   }
 
+  function renderDuplicates(groups) {
+    const ul = $('duplicates-list');
+    ul.innerHTML = '';
+    $('duplicates-empty').hidden = groups.length > 0;
+    for (const group of groups) {
+      const li = document.createElement('li');
+      const locations = group.map((g) => `${esc(g.packTitle)} #${esc(g.index)}`).join(', ');
+      li.innerHTML =
+        `<div class="review-q">${esc(group[0].text)}</div>` +
+        `<div class="review-line">Найдено в: ${locations}</div>`;
+      ul.appendChild(li);
+    }
+  }
+
   function renderAdminUsers(users) {
     const ul = $('admin-users');
     ul.innerHTML = '';
@@ -763,6 +781,10 @@
   });
 
   $('btn-admin-back').addEventListener('click', () => showScreen('home'));
+
+  $('btn-check-duplicates').addEventListener('click', () => {
+    send({ type: 'admin_check_duplicates' });
+  });
 
   // --- Anti-cheat: flag tab-switching / losing focus while a question is live ---
   function reportDistractionIfNeeded() {
