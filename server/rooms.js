@@ -71,6 +71,7 @@ class Room {
       ws,
       maxUserId: maxUserId || null,
       score: 0,
+      wrong: 0,
       answered: null,
       isBot: false,
       optionMap: null,
@@ -90,6 +91,7 @@ class Room {
       name: BOT_NAME,
       ws: null,
       score: 0,
+      wrong: 0,
       answered: null,
       isBot: true,
       optionMap: null,
@@ -125,6 +127,7 @@ class Room {
       id: p.id,
       name: p.name,
       score: p.score,
+      wrong: p.wrong,
       distractions: p.distractions,
       fastCorrectCount: p.fastCorrectCount,
     }));
@@ -183,6 +186,7 @@ class Room {
     this.questionIndex = -1;
     for (const p of this.players.values()) {
       p.score = 0;
+      p.wrong = 0;
       p.answerHistory = [];
     }
     this.state = 'question';
@@ -329,6 +333,13 @@ class Room {
     this.clearTimer();
     this.state = 'reveal';
     const q = this.currentQuestion();
+
+    // Tally this round's misses first, so the board sent below already reflects
+    // the question that just closed. Bots count too — they're on the board.
+    for (const p of this.players.values()) {
+      if (p.lastAnswerActualIndex !== q.correctIndex) p.wrong += 1;
+    }
+
     const board = this.leaderboard();
     const roundResults = Array.from(this.players.values()).map((p) => ({
       id: p.id,

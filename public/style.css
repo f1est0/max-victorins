@@ -363,6 +363,25 @@ input[type="number"]::-webkit-inner-spin-button {
 
 .leaderboard li .rank { color: var(--accent); font-weight: 700; margin-right: 8px; }
 
+.score-box {
+  display: inline-flex;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.score-correct, .score-wrong {
+  min-width: 30px;
+  padding: 4px 8px;
+  border-radius: 8px;
+  font-size: .85rem;
+  font-weight: 700;
+  text-align: center;
+  line-height: 1.2;
+}
+
+.score-correct { background: rgba(52, 199, 89, .16); color: var(--correct); }
+.score-wrong { background: rgba(255, 77, 79, .16); color: var(--wrong); }
+
 .badge {
   font-size: .75rem;
   color: var(--muted);

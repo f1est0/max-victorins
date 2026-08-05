@@ -611,7 +611,12 @@
       if (p.fastCorrectCount >= 3) {
         badges += `<span class="badge" title="Много очень быстрых верных ответов">⚡${p.fastCorrectCount}</span>`;
       }
-      li.innerHTML = `<span><span class="rank">${i + 1}.</span>${esc(p.name)}${badges}</span><span>${esc(p.score)}</span>`;
+      const scoreBoxes =
+        `<span class="score-box">` +
+        `<span class="score-correct" title="Верных ответов">${esc(p.score)}</span>` +
+        `<span class="score-wrong" title="Неверных ответов">${esc(p.wrong || 0)}</span>` +
+        `</span>`;
+      li.innerHTML = `<span><span class="rank">${i + 1}.</span>${esc(p.name)}${badges}</span>${scoreBoxes}`;
       ol.appendChild(li);
     });
   }
