@@ -18,6 +18,17 @@
 
   // --- DOM helpers ---
   const $ = (id) => document.getElementById(id);
+
+  // Player names come straight from MAX profiles, i.e. they're user-controlled.
+  // Anything interpolated into innerHTML has to go through this first.
+  function esc(value) {
+    return String(value == null ? '' : value)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#39;');
+  }
   const screens = ['home', 'lobby', 'question', 'reveal', 'final', 'banned', 'admin', 'ratings'];
   const ABORTABLE_SCREENS = ['question', 'reveal'];
   const BACK_SCREENS = ['lobby'];
@@ -320,6 +331,9 @@
 
       case 'room_closed':
         showScreen('home');
+        // Buttons were disabled when this player joined the room — re-enable them,
+        // otherwise they're stranded on the home screen unable to start anything.
+        setRoomButtonsDisabled(false);
         $('home-error').textContent = msg.reason === 'host_left'
           ? 'Хост закрыл комнату'
           : 'Комната закрыта';
@@ -507,7 +521,7 @@
     for (const r of roundResults) {
       const li = document.createElement('li');
       li.className = r.correct ? 'answer-row-correct' : 'answer-row-wrong';
-      li.innerHTML = `<span>${r.name}</span>`;
+      li.innerHTML = `<span>${esc(r.name)}</span>`;
       ul.appendChild(li);
     }
   }
@@ -539,7 +553,7 @@
       if (p.fastCorrectCount >= 3) {
         badges += `<span class="badge" title="Много очень быстрых верных ответов">⚡${p.fastCorrectCount}</span>`;
       }
-      li.innerHTML = `<span><span class="rank">${i + 1}.</span>${p.name}${badges}</span><span>${p.score}</span>`;
+      li.innerHTML = `<span><span class="rank">${i + 1}.</span>${esc(p.name)}${badges}</span><span>${esc(p.score)}</span>`;
       ol.appendChild(li);
     });
   }
@@ -552,7 +566,7 @@
       const displayName = [u.firstName, u.lastName].filter(Boolean).join(' ') || u.username || u.id;
       const info = document.createElement('div');
       info.className = 'admin-user-info';
-      info.innerHTML = `<span>${displayName}</span><span class="admin-user-meta">рейтинг ${u.rating} · игр ${u.gamesPlayed}</span>`;
+      info.innerHTML = `<span>${esc(displayName)}</span><span class="admin-user-meta">рейтинг ${esc(u.rating)} · игр ${esc(u.gamesPlayed)}</span>`;
       const btn = document.createElement('button');
       btn.className = 'ban-btn' + (u.banned ? ' unban' : '');
       btn.textContent = u.banned ? 'Разбанить' : 'Забанить';
@@ -571,7 +585,7 @@
     $('bot-leaderboard-empty').hidden = entries.length > 0;
     entries.forEach((e, i) => {
       const li = document.createElement('li');
-      li.innerHTML = `<span><span class="rank">${i + 1}.</span>${e.name}</span><span>${e.rating} (${e.wins}W/${e.draws}N/${e.losses}L)</span>`;
+      li.innerHTML = `<span><span class="rank">${i + 1}.</span>${esc(e.name)}</span><span>${esc(e.rating)} (${esc(e.wins)}W/${esc(e.draws)}N/${esc(e.losses)}L)</span>`;
       ol.appendChild(li);
     });
   }
@@ -673,9 +687,11 @@
   // --- Abort quiz (mid-game) ---
   $('btn-abort').addEventListener('click', () => {
     openConfirm(
-      gameMode === 'matchmaking'
-        ? 'Вы точно хотите прервать викторину? Рейтинг понизится.'
-        : 'Вы точно хотите прервать викторину?',
+      gameMode === 'bot'
+        ? 'Вы точно хотите прервать викторину? Матч будет засчитан как поражение боту.'
+        : gameMode === 'matchmaking'
+          ? 'Вы точно хотите прервать викторину? Рейтинг понизится.'
+          : 'Вы точно хотите прервать викторину?',
       'Прервать'
     );
   });

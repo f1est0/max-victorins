@@ -47,6 +47,19 @@ function resolveName(profile, fallbackRaw, fallbackDefault) {
 // intentional leaves ("Назад" / confirmed "Прервать"), as opposed to a socket
 // just dropping, which gets a reconnect window instead.
 function removeFromRoomNow(rooms, room, clientId, profile) {
+  // Walking out of a live match counts against you. This has to run before the
+  // host branch below: in solo/bot rooms the player IS the host, so an early
+  // return there would skip the penalty entirely and let someone farm the
+  // leaderboard by quitting every game they're about to lose.
+  const gameInProgress = room.state === 'question' || room.state === 'reveal';
+  if (gameInProgress && profile) {
+    if (room.mode === 'bot') {
+      store.applyBotResult(profile.id, 0); // scored as a loss to the bot
+    } else if (room.mode === 'matchmaking') {
+      store.applyAbortPenalty(profile.id);
+    }
+  }
+
   if (room.hostId === clientId) {
     // The host leaving strands everyone else in an unwinnable "waiting for
     // host" state — close the whole room for everyone instead.
@@ -56,13 +69,8 @@ function removeFromRoomNow(rooms, room, clientId, profile) {
     return;
   }
 
-  const wasInProgress =
-    room.mode === 'matchmaking' && (room.state === 'question' || room.state === 'reveal');
   room.removePlayer(clientId);
   room.broadcast({ type: 'room_update', players: room.playersList() });
-  if (wasInProgress && profile) {
-    store.applyAbortPenalty(profile.id);
-  }
   if (room.isEmpty()) {
     rooms.delete(room.code);
   }

@@ -147,7 +147,9 @@ function applyBotResult(id, score, kFactor = 32) {
 
 function listBotLeaderboard(limit = 50) {
   return Object.values(users)
-    .filter((u) => u.botGamesPlayed > 0)
+    // Banned players are kept out of the standings entirely — there's a prize
+    // attached to the top places, so a banned cheater must not hold one.
+    .filter((u) => u.botGamesPlayed > 0 && !u.banned)
     .sort((a, b) => b.ratingVsBot - a.ratingVsBot)
     .slice(0, limit)
     .map((u) => ({
