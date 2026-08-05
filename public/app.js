@@ -560,7 +560,7 @@
     $('bot-leaderboard-empty').hidden = entries.length > 0;
     entries.forEach((e, i) => {
       const li = document.createElement('li');
-      li.innerHTML = `<span><span class="rank">${i + 1}.</span>${e.name}</span><span>${e.rating} (${e.wins}W/${e.losses}L)</span>`;
+      li.innerHTML = `<span><span class="rank">${i + 1}.</span>${e.name}</span><span>${e.rating} (${e.wins}W/${e.draws}N/${e.losses}L)</span>`;
       ol.appendChild(li);
     });
   }

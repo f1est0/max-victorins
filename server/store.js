@@ -156,6 +156,7 @@ function listBotLeaderboard(limit = 50) {
       rating: u.ratingVsBot,
       gamesPlayed: u.botGamesPlayed,
       wins: u.botWins,
+      draws: u.botDraws,
       losses: u.botLosses,
     }));
 }
