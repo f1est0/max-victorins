@@ -155,6 +155,11 @@
     <p id="duplicates-empty" class="hint centered" hidden>Дубликатов не найдено.</p>
     <ul id="duplicates-list" class="review-list"></ul>
 
+    <h2>Паки пользователей</h2>
+    <button id="btn-list-custom-packs" class="btn">📚 Показать паки пользователей</button>
+    <p id="admin-custom-packs-empty" class="hint centered" hidden>Пользовательских паков пока нет.</p>
+    <div id="admin-custom-packs-list"></div>
+
     <button id="btn-admin-back" class="btn">Назад</button>
   </section>
 
@@ -169,6 +174,14 @@
     <h2 class="centered">Статистика по темам</h2>
     <div id="profile-topics"></div>
     <p id="profile-topics-empty" class="hint centered" hidden>Пока нет сыгранных вопросов по темам.</p>
+
+    <h2 class="centered">Мои паки</h2>
+    <ul id="my-packs-list" class="players-list"></ul>
+    <p id="my-packs-empty" class="hint centered" hidden>Вы ещё не добавили свои паки.</p>
+    <input id="custom-pack-file" type="file" accept="application/json,.json" hidden />
+    <button id="btn-add-pack" class="btn">➕ Добавить пак (JSON-файл)</button>
+    <p id="custom-pack-error" class="error"></p>
+    <p class="hint">Файл — как обычный пак вопросов: {"title": "...", "questions": [{"text": "...", "options": ["...", "...", "...", "..."], "correctIndex": 0}]}. Виден только вам, доступен при создании комнаты для игры с друзьями.</p>
 
     <button id="btn-profile-back" class="btn">Назад</button>
   </section>

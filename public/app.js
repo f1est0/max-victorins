@@ -58,6 +58,7 @@
 
   // --- Profile screen: opened by tapping the avatar ---
   let profileSummary = null; // { name, photoUrl, rating, gamesPlayed, ratingVsBot, botGamesPlayed }
+  let myCustomPacks = []; // this player's own uploaded packs, usable only when creating a multiplayer room
   avatarImg.addEventListener('click', () => {
     if (!profileSummary) return;
     $('profile-avatar').src = profileSummary.photoUrl || '';
@@ -68,8 +69,10 @@
       `🏆 Рейтинг: ${esc(profileSummary.rating)} · игр: ${esc(profileSummary.gamesPlayed)}`;
     $('profile-topics').innerHTML = '';
     $('profile-topics-empty').hidden = true;
+    $('custom-pack-error').textContent = '';
     showScreen('profile');
     send({ type: 'get_topic_stats' });
+    send({ type: 'get_custom_packs' });
   });
   if (maxUser && (maxUser.first_name || maxUser.name)) {
     nameInput.value = maxUser.first_name || maxUser.name;
@@ -148,7 +151,8 @@
   // Solo/bot (home screen) and multiplayer (its own screen) each get their own
   // independent topic/subtopic/count pickers, so choosing a topic for one
   // doesn't affect the other. Both are built the same way, hence the factory.
-  function makeSelectionController(ids) {
+  function makeSelectionController(ids, opts) {
+    opts = opts || {};
     const topicSelect = $(ids.topic);
     const subtopicWrap = $(ids.subtopicWrap);
     const subtopicSelect = $(ids.subtopic);
@@ -171,6 +175,19 @@
         opt.value = `category:${c.id}`;
         opt.textContent = `${c.title} (${c.totalCount})`;
         topicSelect.appendChild(opt);
+      }
+      // Custom packs are only offered where they're actually usable — creating
+      // a multiplayer room for friends — never for solo/bot on the home screen.
+      if (opts.includeCustom && myCustomPacks.length > 0) {
+        const group = document.createElement('optgroup');
+        group.label = 'Мои паки (для друзей)';
+        for (const p of myCustomPacks) {
+          const opt = document.createElement('option');
+          opt.value = `custom:${p.id}`;
+          opt.textContent = `${p.title} (${p.count})`;
+          group.appendChild(opt);
+        }
+        topicSelect.appendChild(group);
       }
       countInput.max = packsData.maxQuestions;
       onTopicChanged();
@@ -200,6 +217,10 @@
 
     function availableQuestionCount() {
       const [kind, id] = topicSelect.value.split(':');
+      if (kind === 'custom') {
+        const p = myCustomPacks.find((p) => p.id === id);
+        return p ? p.count : 0;
+      }
       if (kind === 'all') return packsData.overallCount;
       if (kind === 'category') {
         const cat = findCategory(id);
@@ -226,6 +247,7 @@
       const [kind, id] = topicSelect.value.split(':');
       const max = Math.max(1, availableQuestionCount());
       const count = Math.min(max, Math.max(1, Number(countInput.value) || 1));
+      if (kind === 'custom') return { kind: 'custom', customPackId: id, count };
       if (kind === 'all') return { kind: 'all', count };
       if (kind === 'category') {
         const subVal = subtopicSelect.value;
@@ -252,7 +274,7 @@
   });
   const mpSelection = makeSelectionController({
     topic: 'mp-topic-select', subtopicWrap: 'mp-subtopic-wrap', subtopic: 'mp-subtopic-select', count: 'mp-count-input',
-  });
+  }, { includeCustom: true });
 
   function loadPacks() {
     fetch('/api/packs')
@@ -328,6 +350,7 @@
         if (msg.isAdmin) {
           $('btn-admin').hidden = false;
         }
+        send({ type: 'get_custom_packs' }); // so the multiplayer topic picker has them ready right away
         // Opened via an invite link (?startapp=CODE) — join that room straight away
         // instead of making them type the code in by hand. MAX keeps re-supplying
         // the same start_param on every reload within this session, so once the
@@ -362,6 +385,27 @@
 
       case 'topic_stats':
         renderTopicStats(msg.categories);
+        break;
+
+      case 'custom_packs':
+        myCustomPacks = msg.packs;
+        renderMyPacks(msg.packs);
+        mpSelection.populateTopics();
+        break;
+
+      case 'custom_pack_result':
+        $('custom-pack-error').textContent = msg.ok ? '' : (msg.error || 'Не удалось добавить пак');
+        myCustomPacks = msg.packs;
+        renderMyPacks(msg.packs);
+        mpSelection.populateTopics();
+        break;
+
+      case 'admin_custom_packs':
+        renderAdminCustomPacks(msg.packs);
+        break;
+
+      case 'admin_custom_pack_detail':
+        renderAdminCustomPackDetail(msg.pack);
         break;
 
       case 'room_created':
@@ -768,6 +812,95 @@
     });
   }
 
+  function renderMyPacks(list) {
+    const ul = $('my-packs-list');
+    ul.innerHTML = '';
+    $('my-packs-empty').hidden = list.length > 0;
+    for (const p of list) {
+      const li = document.createElement('li');
+      const info = document.createElement('span');
+      info.textContent = `${p.title} (${p.count})`;
+      const btn = document.createElement('button');
+      btn.className = 'ban-btn';
+      btn.textContent = 'Удалить';
+      btn.addEventListener('click', () => {
+        send({ type: 'remove_custom_pack', packId: p.id });
+      });
+      li.appendChild(info);
+      li.appendChild(btn);
+      ul.appendChild(li);
+    }
+  }
+
+  let pendingPackDetailTarget = null;
+
+  function renderAdminCustomPacks(list) {
+    const container = $('admin-custom-packs-list');
+    container.innerHTML = '';
+    $('admin-custom-packs-empty').hidden = list.length > 0;
+    let openEntry = null;
+    list.forEach((p) => {
+      const card = document.createElement('div');
+      card.className = 'topic-card';
+
+      const row = document.createElement('div');
+      row.className = 'topic-row expandable';
+      row.innerHTML =
+        `<span class="topic-name">${esc(p.ownerName)} — ${esc(p.title)}</span>` +
+        `<span class="topic-pct">${esc(p.count)} вопросов</span>` +
+        `<span class="topic-caret">▾</span>`;
+      card.appendChild(row);
+
+      const detail = document.createElement('div');
+      detail.className = 'admin-pack-detail';
+      detail.hidden = true;
+      card.appendChild(detail);
+
+      row.addEventListener('click', () => {
+        const opening = detail.hidden;
+        if (openEntry && openEntry.detail !== detail) {
+          openEntry.detail.hidden = true;
+          openEntry.row.querySelector('.topic-caret').textContent = '▾';
+        }
+        detail.hidden = !opening;
+        row.querySelector('.topic-caret').textContent = opening ? '▴' : '▾';
+        openEntry = opening ? { detail, row } : null;
+        if (opening && !detail.dataset.loaded) {
+          detail.textContent = 'Загрузка…';
+          pendingPackDetailTarget = detail;
+          send({ type: 'admin_get_custom_pack', packId: p.id });
+        }
+      });
+
+      container.appendChild(card);
+    });
+  }
+
+  function renderAdminCustomPackDetail(pack) {
+    const detail = pendingPackDetailTarget;
+    pendingPackDetailTarget = null;
+    if (!detail) return;
+    detail.dataset.loaded = '1';
+    if (!pack) {
+      detail.textContent = 'Пак не найден (возможно, удалён владельцем).';
+      return;
+    }
+    detail.innerHTML = '';
+    const list = document.createElement('ul');
+    list.className = 'review-list';
+    pack.questions.forEach((q, i) => {
+      const li = document.createElement('li');
+      const optsHtml = q.options.map((o, idx) => {
+        const label = typeof o === 'object' ? o.text : o;
+        const content = idx === q.correctIndex ? `<span class="review-right">${esc(label)}</span>` : esc(label);
+        return `<div class="review-line">${idx + 1}. ${content}</div>`;
+      }).join('');
+      li.innerHTML = `<div class="review-q">${i + 1}. ${esc(q.text)}</div>${optsHtml}`;
+      list.appendChild(li);
+    });
+    detail.appendChild(list);
+  }
+
   function switchRatingsTab(tab) {
     document.querySelectorAll('.tab-btn').forEach((b) => b.classList.toggle('active', b.dataset.tab === tab));
     document.querySelectorAll('.tab-content').forEach((c) => { c.hidden = c.id !== `tab-${tab}`; });
@@ -808,6 +941,33 @@
   $('btn-admin').addEventListener('click', () => {
     send({ type: 'admin_list_users' });
     showScreen('admin');
+  });
+
+  $('btn-add-pack').addEventListener('click', () => $('custom-pack-file').click());
+  $('custom-pack-file').addEventListener('change', () => {
+    const file = $('custom-pack-file').files[0];
+    $('custom-pack-file').value = ''; // allow re-selecting the same file later
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      let data;
+      try {
+        data = JSON.parse(reader.result);
+      } catch (e) {
+        $('custom-pack-error').textContent = 'Файл не является корректным JSON';
+        return;
+      }
+      $('custom-pack-error').textContent = '';
+      send({ type: 'add_custom_pack', title: data.title, questions: data.questions });
+    };
+    reader.onerror = () => {
+      $('custom-pack-error').textContent = 'Не удалось прочитать файл';
+    };
+    reader.readAsText(file);
+  });
+
+  $('btn-list-custom-packs').addEventListener('click', () => {
+    send({ type: 'admin_list_custom_packs' });
   });
 
   $('btn-admin-back').addEventListener('click', () => showScreen('home'));

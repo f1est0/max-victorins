@@ -6,6 +6,7 @@ const { WebSocketServer } = require('ws');
 const { RoomManager, QUESTION_TIME_MS } = require('./rooms');
 const { verifyInitData } = require('./auth');
 const store = require('./store');
+const customPacks = require('./customPacks');
 const { sendMessage } = require('./botApi');
 const { ADMIN_USER_IDS, WEBHOOK_SECRET } = require('./env');
 
@@ -195,9 +196,20 @@ function shuffleArray(arr) {
 // Builds a one-off pack {title, questions} for a game session from a client
 // selection — either a single pack (optionally capped/randomized to `count`
 // questions) or a whole category mixed together and randomly sampled.
-function buildEffectivePack(selection) {
+function buildEffectivePack(selection, requesterId) {
   if (!selection || typeof selection !== 'object') return null;
   const count = Math.max(1, Math.min(MAX_QUESTIONS_PER_GAME, Number(selection.count) || DEFAULT_QUESTION_COUNT));
+
+  if (selection.kind === 'custom') {
+    const custom = customPacks.get(selection.customPackId);
+    // Only the pack's own creator can put it into a game — a friend joining by
+    // room code just plays whatever the host picked, they never choose it.
+    if (!custom || custom.ownerId !== String(requesterId)) return null;
+    return {
+      title: custom.title,
+      questions: shuffleArray(custom.questions).slice(0, Math.min(count, custom.questions.length)),
+    };
+  }
 
   if (selection.kind === 'all') {
     const pool = [];
@@ -554,7 +566,11 @@ wss.on('connection', (ws) => {
         const selection = mode === 'bot'
           ? { ...msg.selection, count: BOT_GAME_QUESTION_COUNT }
           : msg.selection;
-        const pack = buildEffectivePack(selection);
+        if (selection && selection.kind === 'custom' && mode !== 'multiplayer') {
+          ws.send(JSON.stringify({ type: 'error', message: 'Свои паки пока доступны только для игры с друзьями (мультиплеер)' }));
+          return;
+        }
+        const pack = buildEffectivePack(selection, authedProfile.id);
         if (!pack) {
           ws.send(JSON.stringify({ type: 'error', message: 'Пакет вопросов не найден' }));
           return;
@@ -640,6 +656,51 @@ wss.on('connection', (ws) => {
         break;
       }
 
+      case 'add_custom_pack': {
+        if (!authedProfile) return;
+        const result = customPacks.addPack(authedProfile.id, { title: msg.title, questions: msg.questions });
+        ws.send(JSON.stringify({
+          type: 'custom_pack_result',
+          ok: result.ok,
+          error: result.error || null,
+          packs: customPacks.listForUser(authedProfile.id),
+        }));
+        break;
+      }
+
+      case 'remove_custom_pack': {
+        if (!authedProfile) return;
+        customPacks.removePack(authedProfile.id, msg.packId);
+        ws.send(JSON.stringify({ type: 'custom_packs', packs: customPacks.listForUser(authedProfile.id) }));
+        break;
+      }
+
+      case 'get_custom_packs': {
+        if (!authedProfile) return;
+        ws.send(JSON.stringify({ type: 'custom_packs', packs: customPacks.listForUser(authedProfile.id) }));
+        break;
+      }
+
+      case 'admin_list_custom_packs': {
+        if (!authedProfile || !isAdminId(authedProfile.id)) return;
+        const list = customPacks.listAll().map((p) => {
+          const owner = store.get(p.ownerId);
+          const ownerName = owner
+            ? [owner.firstName, owner.lastName].filter(Boolean).join(' ').trim() || owner.username || p.ownerId
+            : p.ownerId;
+          return { ...p, ownerName };
+        });
+        ws.send(JSON.stringify({ type: 'admin_custom_packs', packs: list }));
+        break;
+      }
+
+      case 'admin_get_custom_pack': {
+        if (!authedProfile || !isAdminId(authedProfile.id)) return;
+        const pack = customPacks.get(msg.packId);
+        ws.send(JSON.stringify({ type: 'admin_custom_pack_detail', pack }));
+        break;
+      }
+
       case 'get_topic_stats': {
         if (!authedProfile) return;
         ws.send(JSON.stringify({ type: 'topic_stats', categories: store.getTopicStats(authedProfile.id) }));
@@ -687,12 +748,16 @@ function shutdown(signal) {
   if (shuttingDown) return;
   shuttingDown = true;
   store.flush();
+  customPacks.flush();
   console.log(`Received ${signal}, user store flushed, exiting.`);
   process.exit(0);
 }
 process.on('SIGTERM', () => shutdown('SIGTERM'));
 process.on('SIGINT', () => shutdown('SIGINT'));
-process.on('exit', () => store.flush());
+process.on('exit', () => {
+  store.flush();
+  customPacks.flush();
+});
 
 server.listen(PORT, '127.0.0.1', () => {
   console.log(`Quiz server listening on 127.0.0.1:${PORT}`);

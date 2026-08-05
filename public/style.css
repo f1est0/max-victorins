@@ -214,6 +214,14 @@ h2 { font-size: 1.15rem; margin: 0 0 12px; }
   padding: 0 14px 10px;
 }
 
+.admin-pack-detail {
+  padding: 0 14px 12px;
+}
+
+.admin-pack-detail .review-list {
+  margin: 0;
+}
+
 .topic-subpanel li {
   display: flex;
   justify-content: space-between;
