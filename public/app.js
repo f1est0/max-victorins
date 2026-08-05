@@ -693,34 +693,31 @@
     $('profile-topics-empty').hidden = categories.length > 0;
     categories.forEach((cat) => {
       const pct = cat.total ? Math.round((cat.correct / cat.total) * 100) : 0;
-      const expandable = cat.packs.length > 1;
       const card = document.createElement('div');
       card.className = 'topic-card';
 
       const row = document.createElement('div');
-      row.className = 'topic-row' + (expandable ? ' expandable' : '');
+      row.className = 'topic-row expandable';
       row.innerHTML =
         `<span class="topic-name">${esc(cat.title)}</span>` +
         `<span class="topic-pct">${pct}% верных · ${esc(cat.total)} вопросов</span>` +
-        (expandable ? `<span class="topic-caret">▾</span>` : '');
+        `<span class="topic-caret">▾</span>`;
       card.appendChild(row);
 
-      if (expandable) {
-        const sub = document.createElement('ul');
-        sub.className = 'topic-subpanel';
-        sub.hidden = true;
-        cat.packs.forEach((p) => {
-          const pPct = p.total ? Math.round((p.correct / p.total) * 100) : 0;
-          const li = document.createElement('li');
-          li.innerHTML = `<span>${esc(p.title)}</span><span>${pPct}% · ${esc(p.total)}</span>`;
-          sub.appendChild(li);
-        });
-        card.appendChild(sub);
-        row.addEventListener('click', () => {
-          sub.hidden = !sub.hidden;
-          row.querySelector('.topic-caret').textContent = sub.hidden ? '▾' : '▴';
-        });
-      }
+      const sub = document.createElement('ul');
+      sub.className = 'topic-subpanel';
+      sub.hidden = true;
+      cat.packs.forEach((p) => {
+        const pPct = p.total ? Math.round((p.correct / p.total) * 100) : 0;
+        const li = document.createElement('li');
+        li.innerHTML = `<span>${esc(p.title)}</span><span>${pPct}% · ${esc(p.total)}</span>`;
+        sub.appendChild(li);
+      });
+      card.appendChild(sub);
+      row.addEventListener('click', () => {
+        sub.hidden = !sub.hidden;
+        row.querySelector('.topic-caret').textContent = sub.hidden ? '▾' : '▴';
+      });
 
       container.appendChild(card);
     });
