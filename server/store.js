@@ -181,6 +181,60 @@ function applyBotResult(id, score, kFactor = 32) {
   save();
 }
 
+// tally: { [packId]: { categoryId, categoryTitle, packTitle, correct, total } },
+// built per-game in rooms.js from questions tagged with topic metadata. Only
+// library packs carry that tagging (see loadPacks in index.js) — any future
+// custom pack made by players for friend games simply won't have it, so it
+// never shows up here without extra filtering.
+function recordTopicStats(id, tally) {
+  if (!tally) return;
+  const p = users[String(id)];
+  if (!p) return;
+  if (!p.topicStats) p.topicStats = {};
+  for (const [packId, t] of Object.entries(tally)) {
+    if (!t || !t.total) continue;
+    const existing = p.topicStats[packId] || { correct: 0, total: 0 };
+    existing.correct += t.correct;
+    existing.total += t.total;
+    existing.categoryId = t.categoryId;
+    existing.categoryTitle = t.categoryTitle;
+    existing.packTitle = t.packTitle;
+    p.topicStats[packId] = existing;
+  }
+  save();
+}
+
+// Groups per-pack stats into per-category totals (e.g. "Медицина" summed
+// across all its subtopics), with the individual packs nested underneath for
+// the expandable panel. Sorted weakest-accuracy-first so problem areas surface.
+function getTopicStats(id) {
+  const p = users[String(id)];
+  if (!p || !p.topicStats) return [];
+  const byCategory = new Map();
+  for (const [packId, t] of Object.entries(p.topicStats)) {
+    if (!t.total) continue;
+    if (!byCategory.has(t.categoryId)) {
+      byCategory.set(t.categoryId, {
+        categoryId: t.categoryId,
+        title: t.categoryTitle,
+        correct: 0,
+        total: 0,
+        packs: [],
+      });
+    }
+    const cat = byCategory.get(t.categoryId);
+    cat.correct += t.correct;
+    cat.total += t.total;
+    cat.packs.push({ packId, title: t.packTitle, correct: t.correct, total: t.total });
+  }
+  return Array.from(byCategory.values())
+    .sort((a, b) => a.correct / a.total - b.correct / b.total)
+    .map((cat) => ({
+      ...cat,
+      packs: cat.packs.sort((a, b) => a.correct / a.total - b.correct / b.total),
+    }));
+}
+
 function listBotLeaderboard(limit = 50) {
   return Object.values(users)
     // Banned players are kept out of the standings entirely — there's a prize
@@ -208,6 +262,8 @@ module.exports = {
   applyAbortPenalty,
   applyBotResult,
   listBotLeaderboard,
+  recordTopicStats,
+  getTopicStats,
   flush,
   DEFAULT_RATING,
 };

@@ -29,7 +29,7 @@
       .replace(/"/g, '&quot;')
       .replace(/'/g, '&#39;');
   }
-  const screens = ['home', 'lobby', 'question', 'reveal', 'final', 'banned', 'admin', 'ratings'];
+  const screens = ['home', 'lobby', 'question', 'reveal', 'final', 'banned', 'admin', 'ratings', 'profile'];
   const ABORTABLE_SCREENS = ['question', 'reveal'];
   const BACK_SCREENS = ['lobby'];
   function showScreen(name) {
@@ -55,6 +55,22 @@
     avatarImg.src = url;
     avatarImg.hidden = false;
   }
+
+  // --- Profile screen: opened by tapping the avatar ---
+  let profileSummary = null; // { name, photoUrl, rating, gamesPlayed, ratingVsBot, botGamesPlayed }
+  avatarImg.addEventListener('click', () => {
+    if (!profileSummary) return;
+    $('profile-avatar').src = profileSummary.photoUrl || '';
+    $('profile-avatar').hidden = !profileSummary.photoUrl;
+    $('profile-name').textContent = profileSummary.name || '';
+    $('profile-rating').innerHTML =
+      `🤖 Против бота: ${esc(profileSummary.ratingVsBot)} · игр: ${esc(profileSummary.botGamesPlayed)}<br>` +
+      `🏆 Рейтинг: ${esc(profileSummary.rating)} · игр: ${esc(profileSummary.gamesPlayed)}`;
+    $('profile-topics').innerHTML = '';
+    $('profile-topics-empty').hidden = true;
+    showScreen('profile');
+    send({ type: 'get_topic_stats' });
+  });
   if (maxUser && (maxUser.first_name || maxUser.name)) {
     nameInput.value = maxUser.first_name || maxUser.name;
     nameInput.disabled = true;
@@ -283,6 +299,14 @@
           $('rating-display').innerHTML =
             `🤖 Против бота: ${msg.profile.ratingVsBot} · игр: ${msg.profile.botGamesPlayed}<br>` +
             `🏆 Рейтинг: ${msg.profile.rating} · игр: ${msg.profile.gamesPlayed}`;
+          profileSummary = {
+            name: msg.name,
+            photoUrl: msg.photoUrl,
+            rating: msg.profile.rating,
+            gamesPlayed: msg.profile.gamesPlayed,
+            ratingVsBot: msg.profile.ratingVsBot,
+            botGamesPlayed: msg.profile.botGamesPlayed,
+          };
         }
         if (msg.isAdmin) {
           $('btn-admin').hidden = false;
@@ -313,6 +337,10 @@
 
       case 'bot_leaderboard':
         renderBotLeaderboard(msg.entries);
+        break;
+
+      case 'topic_stats':
+        renderTopicStats(msg.categories);
         break;
 
       case 'room_created':
@@ -659,6 +687,45 @@
     });
   }
 
+  function renderTopicStats(categories) {
+    const container = $('profile-topics');
+    container.innerHTML = '';
+    $('profile-topics-empty').hidden = categories.length > 0;
+    categories.forEach((cat) => {
+      const pct = cat.total ? Math.round((cat.correct / cat.total) * 100) : 0;
+      const expandable = cat.packs.length > 1;
+      const card = document.createElement('div');
+      card.className = 'topic-card';
+
+      const row = document.createElement('div');
+      row.className = 'topic-row' + (expandable ? ' expandable' : '');
+      row.innerHTML =
+        `<span class="topic-name">${esc(cat.title)}</span>` +
+        `<span class="topic-pct">${pct}% верных · ${esc(cat.total)} вопросов</span>` +
+        (expandable ? `<span class="topic-caret">▾</span>` : '');
+      card.appendChild(row);
+
+      if (expandable) {
+        const sub = document.createElement('ul');
+        sub.className = 'topic-subpanel';
+        sub.hidden = true;
+        cat.packs.forEach((p) => {
+          const pPct = p.total ? Math.round((p.correct / p.total) * 100) : 0;
+          const li = document.createElement('li');
+          li.innerHTML = `<span>${esc(p.title)}</span><span>${pPct}% · ${esc(p.total)}</span>`;
+          sub.appendChild(li);
+        });
+        card.appendChild(sub);
+        row.addEventListener('click', () => {
+          sub.hidden = !sub.hidden;
+          row.querySelector('.topic-caret').textContent = sub.hidden ? '▾' : '▴';
+        });
+      }
+
+      container.appendChild(card);
+    });
+  }
+
   function switchRatingsTab(tab) {
     document.querySelectorAll('.tab-btn').forEach((b) => b.classList.toggle('active', b.dataset.tab === tab));
     document.querySelectorAll('.tab-content').forEach((c) => { c.hidden = c.id !== `tab-${tab}`; });
@@ -675,6 +742,8 @@
   });
 
   $('btn-ratings-back').addEventListener('click', () => showScreen('home'));
+
+  $('btn-profile-back').addEventListener('click', () => showScreen('home'));
 
   $('btn-admin').addEventListener('click', () => {
     send({ type: 'admin_list_users' });

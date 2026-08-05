@@ -82,6 +82,10 @@ function removeFromRoomNow(rooms, room, clientId, profile) {
 // beating a fixed-difficulty bot means something different from beating a
 // real ranked opponent.
 function handleGameOver(mode, results) {
+  for (const r of results) {
+    if (r.maxUserId && r.topicTally) store.recordTopicStats(r.maxUserId, r.topicTally);
+  }
+
   if (mode === 'bot') {
     const human = results.find((r) => !r.isBot);
     const botEntry = results.find((r) => r.isBot);
@@ -155,7 +159,22 @@ function loadPacks() {
       } else if (entry.name.endsWith('.json') && entry.name !== '_meta.json') {
         const baseName = path.basename(entry.name, '.json');
         const id = prefix ? `${prefix}/${baseName}` : baseName;
-        packs[id] = JSON.parse(fs.readFileSync(fullPath, 'utf8'));
+        const pack = JSON.parse(fs.readFileSync(fullPath, 'utf8'));
+        // Tag each question with where it came from, so per-topic accuracy stats
+        // can be tallied later without any extra bookkeeping at game time. The
+        // top-level folder (or the pack itself, if it's not in a folder) is the
+        // "category" shown on the profile; the pack is the expandable subtopic.
+        const categoryId = prefix ? prefix.split('/')[0] : id;
+        const categoryTitle = prefix
+          ? (categoryMeta[categoryId] ? categoryMeta[categoryId].title : categoryId)
+          : pack.title;
+        for (const q of pack.questions) {
+          q._topicPackId = id;
+          q._topicPackTitle = pack.title;
+          q._topicCategoryId = categoryId;
+          q._topicCategoryTitle = categoryTitle;
+        }
+        packs[id] = pack;
       }
     }
   }
@@ -528,6 +547,12 @@ wss.on('connection', (ws) => {
 
       case 'leave_room': {
         leaveRoomNow();
+        break;
+      }
+
+      case 'get_topic_stats': {
+        if (!authedProfile) return;
+        ws.send(JSON.stringify({ type: 'topic_stats', categories: store.getTopicStats(authedProfile.id) }));
         break;
       }
 

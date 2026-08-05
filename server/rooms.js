@@ -82,6 +82,7 @@ class Room {
       lastAnswerActualIndex: null,
       disconnectTimer: null,
       answerHistory: [], // questions this player got wrong, for the end-of-game review
+      topicTally: {}, // per-pack correct/total, for the profile's per-topic accuracy stats
     });
   }
 
@@ -188,6 +189,7 @@ class Room {
       p.score = 0;
       p.wrong = 0;
       p.answerHistory = [];
+      p.topicTally = {};
     }
     this.state = 'question';
     this.broadcast({ type: 'game_started' });
@@ -217,6 +219,7 @@ class Room {
             maxUserId: p.maxUserId,
             score: p.score,
             isBot: p.isBot,
+            topicTally: p.topicTally,
           }))
         );
       }
@@ -351,6 +354,21 @@ class Room {
 
     for (const p of this.players.values()) {
       if (p.isBot) continue;
+
+      // Only library questions carry topic tags (see loadPacks in index.js) —
+      // one-off packs built for private friend games won't, and are silently
+      // excluded from profile stats as a result.
+      if (q._topicPackId) {
+        const t = p.topicTally[q._topicPackId] || (p.topicTally[q._topicPackId] = {
+          categoryId: q._topicCategoryId,
+          categoryTitle: q._topicCategoryTitle,
+          packTitle: q._topicPackTitle,
+          correct: 0,
+          total: 0,
+        });
+        t.total += 1;
+        if (p.lastAnswerActualIndex === q.correctIndex) t.correct += 1;
+      }
 
       // Remember every question this player didn't get right (wrong answer or
       // no answer at all) so the end-of-game screen can walk them through it.
