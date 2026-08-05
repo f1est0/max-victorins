@@ -129,6 +129,27 @@ function setBanned(id, banned) {
   return p;
 }
 
+// Wipes ratings/game counters/per-topic accuracy back to a fresh account's
+// values. Leaves identity (name/photo), ban status, and custom packs alone —
+// this is for clearing stats, not the account itself.
+function resetStats(id) {
+  const p = users[String(id)];
+  if (!p) return null;
+  p.rating = DEFAULT_RATING;
+  p.gamesPlayed = 0;
+  p.wins = 0;
+  p.losses = 0;
+  p.draws = 0;
+  p.ratingVsBot = DEFAULT_RATING;
+  p.botGamesPlayed = 0;
+  p.botWins = 0;
+  p.botLosses = 0;
+  p.botDraws = 0;
+  p.topicStats = {};
+  save();
+  return p;
+}
+
 function expectedScore(ratingA, ratingB) {
   return 1 / (1 + Math.pow(10, (ratingB - ratingA) / 400));
 }
@@ -258,6 +279,7 @@ module.exports = {
   get,
   list,
   setBanned,
+  resetStats,
   applyEloResult,
   applyAbortPenalty,
   applyBotResult,

@@ -732,6 +732,13 @@ wss.on('connection', (ws) => {
         break;
       }
 
+      case 'admin_reset_stats': {
+        if (!authedProfile || !isAdminId(authedProfile.id)) return;
+        const updated = store.resetStats(msg.userId);
+        if (updated) ws.send(JSON.stringify({ type: 'admin_users', users: store.list() }));
+        break;
+      }
+
       default:
         break;
     }

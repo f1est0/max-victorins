@@ -757,14 +757,31 @@
       const info = document.createElement('div');
       info.className = 'admin-user-info';
       info.innerHTML = `<span>${esc(displayName)}</span><span class="admin-user-meta">рейтинг ${esc(u.rating)} · игр ${esc(u.gamesPlayed)}</span>`;
+      const actions = document.createElement('div');
+      actions.className = 'admin-user-actions';
+
       const btn = document.createElement('button');
       btn.className = 'ban-btn' + (u.banned ? ' unban' : '');
       btn.textContent = u.banned ? 'Разбанить' : 'Забанить';
       btn.addEventListener('click', () => {
         send({ type: 'admin_set_banned', userId: u.id, banned: !u.banned });
       });
+
+      const resetBtn = document.createElement('button');
+      resetBtn.className = 'ban-btn';
+      resetBtn.textContent = 'Сбросить статистику';
+      resetBtn.addEventListener('click', () => {
+        openConfirm(
+          `Сбросить всю статистику игрока «${displayName}»? Рейтинги и счётчики игр обнулятся, забаненность не изменится.`,
+          'Сбросить',
+          () => send({ type: 'admin_reset_stats', userId: u.id })
+        );
+      });
+
+      actions.appendChild(resetBtn);
+      actions.appendChild(btn);
       li.appendChild(info);
-      li.appendChild(btn);
+      li.appendChild(actions);
       ul.appendChild(li);
     }
   }
@@ -1151,9 +1168,11 @@
     setTimeout(() => location.reload(), 80);
   }
 
-  function openConfirm(text, confirmLabel) {
+  let pendingConfirmAction = null;
+  function openConfirm(text, confirmLabel, action) {
     $('confirm-text').textContent = text;
     $('btn-confirm-abort').textContent = confirmLabel;
+    pendingConfirmAction = action;
     $('confirm-modal').hidden = false;
   }
 
@@ -1182,7 +1201,8 @@
         : gameMode === 'matchmaking'
           ? 'Вы точно хотите прервать викторину? Рейтинг понизится.'
           : 'Вы точно хотите прервать викторину?',
-      'Прервать'
+      'Прервать',
+      leaveAndReload
     );
   });
 
@@ -1192,15 +1212,22 @@
       lastPlayerCount > 1
         ? 'Закрыть лобби? Все игроки будут отключены от комнаты.'
         : 'Закрыть лобби?',
-      'Закрыть'
+      'Закрыть',
+      leaveAndReload
     );
   });
 
   $('btn-confirm-cancel').addEventListener('click', () => {
     $('confirm-modal').hidden = true;
+    pendingConfirmAction = null;
   });
 
-  $('btn-confirm-abort').addEventListener('click', leaveAndReload);
+  $('btn-confirm-abort').addEventListener('click', () => {
+    $('confirm-modal').hidden = true;
+    const action = pendingConfirmAction;
+    pendingConfirmAction = null;
+    if (action) action();
+  });
 
   // --- Leave lobby before the game has started (guest, no confirmation needed) ---
   $('btn-back').addEventListener('click', leaveAndReload);

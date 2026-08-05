@@ -478,6 +478,8 @@ input[type="number"]::-webkit-inner-spin-button {
 
 .ban-btn.unban { background: var(--correct); color: #06210f; }
 
+.admin-user-actions { display: flex; gap: 8px; flex-shrink: 0; }
+
 .admin-user-info { display: flex; flex-direction: column; }
 .admin-user-info .admin-user-meta { color: var(--muted); font-size: .78rem; }
 
