@@ -373,6 +373,7 @@ class Room {
         leaderboard: board,
         roundResults,
         revealTimeMs: REVEAL_TIME_MS,
+        isLastQuestion: this.questionIndex + 1 >= this.pack.questions.length,
       });
     }
 

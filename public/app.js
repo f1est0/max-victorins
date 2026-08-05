@@ -336,9 +336,9 @@
         // Buttons were disabled when this player joined the room — re-enable them,
         // otherwise they're stranded on the home screen unable to start anything.
         setRoomButtonsDisabled(false);
-        $('home-error').textContent = msg.reason === 'host_left'
+        showRoomClosedNotice(msg.reason === 'host_left'
           ? 'Хост закрыл комнату'
-          : 'Комната закрыта';
+          : 'Комната закрыта');
         break;
 
       case 'error':
@@ -520,9 +520,15 @@
     function updateRevealCountdown() {
       const left = Math.max(0, revealDeadline - Date.now());
       const secs = Math.ceil(left / 1000);
-      $('reveal-wait').textContent = secs > 0
-        ? `Следующий вопрос через ${secs}с…`
-        : 'Следующий вопрос…';
+      if (msg.isLastQuestion) {
+        $('reveal-wait').textContent = secs > 0
+          ? `Результаты игры через ${secs}с…`
+          : 'Результаты игры…';
+      } else {
+        $('reveal-wait').textContent = secs > 0
+          ? `Следующий вопрос через ${secs}с…`
+          : 'Следующий вопрос…';
+      }
       if (left <= 0) clearInterval(timerInterval);
     }
     updateRevealCountdown();
@@ -695,6 +701,16 @@
   const roomActionButtons = ['btn-create', 'btn-solo', 'btn-bot', 'btn-join'].map($);
   function setRoomButtonsDisabled(disabled) {
     roomActionButtons.forEach((b) => { b.disabled = disabled; });
+  }
+
+  let roomClosedNoticeTimer = null;
+  function showRoomClosedNotice(text) {
+    $('room-closed-text').textContent = text;
+    $('room-closed-notice').hidden = false;
+    clearTimeout(roomClosedNoticeTimer);
+    roomClosedNoticeTimer = setTimeout(() => {
+      $('room-closed-notice').hidden = true;
+    }, 6000);
   }
 
   function createRoom(mode) {

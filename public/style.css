@@ -204,6 +204,20 @@ h2 { font-size: 1.15rem; margin: 0 0 12px; }
   margin: 0 0 20px;
 }
 
+.warning-banner {
+  background: linear-gradient(135deg, var(--wrong), #a32224);
+  color: #fff;
+  border-radius: 14px;
+  padding: 14px 16px;
+  margin-bottom: 16px;
+  font-size: 1rem;
+  font-weight: 700;
+  text-align: center;
+  line-height: 1.4;
+  box-shadow: 0 0 0 2px rgba(255, 77, 79, .3);
+  animation: fade .25s ease;
+}
+
 .announcement {
   background: linear-gradient(135deg, var(--accent), var(--accent-dark));
   color: #fff;
