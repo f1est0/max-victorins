@@ -178,16 +178,13 @@
       }
       // Custom packs are only offered where they're actually usable — creating
       // a multiplayer room for friends — never for solo/bot on the home screen.
+      // They're grouped the same way as a library category: "Мои паки" as the
+      // topic, individual pack names as its subtopics.
       if (opts.includeCustom && myCustomPacks.length > 0) {
-        const group = document.createElement('optgroup');
-        group.label = 'Мои паки (для друзей)';
-        for (const p of myCustomPacks) {
-          const opt = document.createElement('option');
-          opt.value = `custom:${p.id}`;
-          opt.textContent = `${p.title} (${p.count})`;
-          group.appendChild(opt);
-        }
-        topicSelect.appendChild(group);
+        const opt = document.createElement('option');
+        opt.value = 'customcat:mine';
+        opt.textContent = `Мои паки (${myCustomPacks.length})`;
+        topicSelect.appendChild(opt);
       }
       countInput.max = packsData.maxQuestions;
       onTopicChanged();
@@ -209,6 +206,15 @@
           opt.textContent = `${t.title} (${t.count})`;
           subtopicSelect.appendChild(opt);
         }
+      } else if (kind === 'customcat') {
+        subtopicWrap.hidden = false;
+        subtopicSelect.innerHTML = '';
+        for (const p of myCustomPacks) {
+          const opt = document.createElement('option');
+          opt.value = p.id;
+          opt.textContent = `${p.title} (${p.count})`;
+          subtopicSelect.appendChild(opt);
+        }
       } else {
         subtopicWrap.hidden = true;
       }
@@ -217,8 +223,8 @@
 
     function availableQuestionCount() {
       const [kind, id] = topicSelect.value.split(':');
-      if (kind === 'custom') {
-        const p = myCustomPacks.find((p) => p.id === id);
+      if (kind === 'customcat') {
+        const p = myCustomPacks.find((p) => p.id === subtopicSelect.value);
         return p ? p.count : 0;
       }
       if (kind === 'all') return packsData.overallCount;
@@ -247,7 +253,7 @@
       const [kind, id] = topicSelect.value.split(':');
       const max = Math.max(1, availableQuestionCount());
       const count = Math.min(max, Math.max(1, Number(countInput.value) || 1));
-      if (kind === 'custom') return { kind: 'custom', customPackId: id, count };
+      if (kind === 'customcat') return { kind: 'custom', customPackId: subtopicSelect.value, count };
       if (kind === 'all') return { kind: 'all', count };
       if (kind === 'category') {
         const subVal = subtopicSelect.value;
