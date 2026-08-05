@@ -55,7 +55,6 @@
           <button id="btn-solo" class="btn">Одиночная игра</button>
           <button id="btn-bot" class="btn">Против бота</button>
         </div>
-        <button id="btn-create" class="btn primary">Создать комнату (мультиплеер)</button>
       </div>
 
       <button id="join-toggle" class="btn join-toggle-btn" type="button">Присоединиться <span class="topic-caret">▾</span></button>
@@ -64,11 +63,39 @@
         <button id="btn-join" class="btn">Войти по коду</button>
       </div>
 
+      <button id="btn-multiplayer" class="btn primary">🎮 Мультиплеер</button>
+
       <button id="btn-ratings" class="btn">🏆 Рейтинги</button>
 
       <p id="home-error" class="error"></p>
       <button id="btn-support" class="btn support-btn">💬 Связаться с поддержкой</button>
     </div>
+  </section>
+
+  <section id="screen-multiplayer" class="screen">
+    <h1>Мультиплеер</h1>
+
+    <div class="card">
+      <label for="mp-topic-select">Тема</label>
+      <select id="mp-topic-select"></select>
+
+      <div id="mp-subtopic-wrap" hidden>
+        <label for="mp-subtopic-select">Раздел</label>
+        <select id="mp-subtopic-select"></select>
+      </div>
+
+      <label for="mp-count-input">Количество вопросов</label>
+      <input id="mp-count-input" type="number" min="1" value="10" />
+
+      <button id="btn-create" class="btn primary">Создать комнату</button>
+    </div>
+
+    <button id="btn-rated" class="btn" disabled>🔒 Играть рейтинг</button>
+    <p class="hint centered">Скоро — подбор соперника по рейтингу</p>
+
+    <p id="mp-error" class="error"></p>
+
+    <button id="btn-multiplayer-back" class="btn">Назад</button>
   </section>
 
   <section id="screen-lobby" class="screen">

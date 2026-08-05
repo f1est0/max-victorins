@@ -29,7 +29,7 @@
       .replace(/"/g, '&quot;')
       .replace(/'/g, '&#39;');
   }
-  const screens = ['home', 'lobby', 'question', 'reveal', 'final', 'banned', 'admin', 'ratings', 'profile'];
+  const screens = ['home', 'lobby', 'question', 'reveal', 'final', 'banned', 'admin', 'ratings', 'profile', 'multiplayer'];
   const ABORTABLE_SCREENS = ['question', 'reveal'];
   const BACK_SCREENS = ['lobby'];
   function showScreen(name) {
@@ -141,111 +141,128 @@
 
   let packsData = { standalone: [], categories: [], overallCount: 0, maxQuestions: 30, defaultCount: 10 };
 
+  function findCategory(id) {
+    return packsData.categories.find((c) => c.id === id);
+  }
+
+  // Solo/bot (home screen) and multiplayer (its own screen) each get their own
+  // independent topic/subtopic/count pickers, so choosing a topic for one
+  // doesn't affect the other. Both are built the same way, hence the factory.
+  function makeSelectionController(ids) {
+    const topicSelect = $(ids.topic);
+    const subtopicWrap = $(ids.subtopicWrap);
+    const subtopicSelect = $(ids.subtopic);
+    const countInput = $(ids.count);
+
+    function populateTopics() {
+      topicSelect.innerHTML = '';
+      const allOpt = document.createElement('option');
+      allOpt.value = 'all:all';
+      allOpt.textContent = `Все темы (${packsData.overallCount})`;
+      topicSelect.appendChild(allOpt);
+      for (const p of packsData.standalone) {
+        const opt = document.createElement('option');
+        opt.value = `pack:${p.id}`;
+        opt.textContent = `${p.title} (${p.count})`;
+        topicSelect.appendChild(opt);
+      }
+      for (const c of packsData.categories) {
+        const opt = document.createElement('option');
+        opt.value = `category:${c.id}`;
+        opt.textContent = `${c.title} (${c.totalCount})`;
+        topicSelect.appendChild(opt);
+      }
+      countInput.max = packsData.maxQuestions;
+      onTopicChanged();
+    }
+
+    function onTopicChanged() {
+      const [kind, id] = topicSelect.value.split(':');
+      if (kind === 'category') {
+        const cat = findCategory(id);
+        subtopicWrap.hidden = false;
+        subtopicSelect.innerHTML = '';
+        const allOpt = document.createElement('option');
+        allOpt.value = 'ALL';
+        allOpt.textContent = `Все темы раздела (из ${cat ? cat.totalCount : 0})`;
+        subtopicSelect.appendChild(allOpt);
+        for (const t of cat ? cat.topics : []) {
+          const opt = document.createElement('option');
+          opt.value = t.id;
+          opt.textContent = `${t.title} (${t.count})`;
+          subtopicSelect.appendChild(opt);
+        }
+      } else {
+        subtopicWrap.hidden = true;
+      }
+      updateCountBounds();
+    }
+
+    function availableQuestionCount() {
+      const [kind, id] = topicSelect.value.split(':');
+      if (kind === 'all') return packsData.overallCount;
+      if (kind === 'category') {
+        const cat = findCategory(id);
+        if (!cat) return 0;
+        const subVal = subtopicSelect.value;
+        if (subVal === 'ALL') return cat.totalCount;
+        const t = cat.topics.find((t) => t.id === subVal);
+        return t ? t.count : 0;
+      }
+      const p = packsData.standalone.find((p) => p.id === id);
+      return p ? p.count : 0;
+    }
+
+    function updateCountBounds() {
+      const max = Math.max(1, availableQuestionCount());
+      countInput.max = max;
+      countInput.min = 1;
+      if (!countInput.value || Number(countInput.value) > max) {
+        countInput.value = Math.min(packsData.defaultCount || 10, max);
+      }
+    }
+
+    function buildSelection() {
+      const [kind, id] = topicSelect.value.split(':');
+      const max = Math.max(1, availableQuestionCount());
+      const count = Math.min(max, Math.max(1, Number(countInput.value) || 1));
+      if (kind === 'all') return { kind: 'all', count };
+      if (kind === 'category') {
+        const subVal = subtopicSelect.value;
+        if (subVal === 'ALL') return { kind: 'category', categoryId: id, count };
+        return { kind: 'pack', packId: subVal, count };
+      }
+      return { kind: 'pack', packId: id, count };
+    }
+
+    topicSelect.addEventListener('change', onTopicChanged);
+    subtopicSelect.addEventListener('change', updateCountBounds);
+    countInput.addEventListener('change', () => {
+      const max = Math.max(1, availableQuestionCount());
+      const v = Number(countInput.value);
+      if (!v || v < 1) countInput.value = 1;
+      else if (v > max) countInput.value = max;
+    });
+
+    return { populateTopics, buildSelection };
+  }
+
+  const homeSelection = makeSelectionController({
+    topic: 'topic-select', subtopicWrap: 'subtopic-wrap', subtopic: 'subtopic-select', count: 'count-input',
+  });
+  const mpSelection = makeSelectionController({
+    topic: 'mp-topic-select', subtopicWrap: 'mp-subtopic-wrap', subtopic: 'mp-subtopic-select', count: 'mp-count-input',
+  });
+
   function loadPacks() {
     fetch('/api/packs')
       .then((r) => r.json())
       .then((data) => {
         packsData = data;
-        const sel = $('topic-select');
-        sel.innerHTML = '';
-
-        const allOpt = document.createElement('option');
-        allOpt.value = 'all:all';
-        allOpt.textContent = `Все темы (${data.overallCount})`;
-        sel.appendChild(allOpt);
-
-        for (const p of data.standalone) {
-          const opt = document.createElement('option');
-          opt.value = `pack:${p.id}`;
-          opt.textContent = `${p.title} (${p.count})`;
-          sel.appendChild(opt);
-        }
-        for (const c of data.categories) {
-          const opt = document.createElement('option');
-          opt.value = `category:${c.id}`;
-          opt.textContent = `${c.title} (${c.totalCount})`;
-          sel.appendChild(opt);
-        }
-        $('count-input').max = data.maxQuestions;
-        onTopicChanged();
+        homeSelection.populateTopics();
+        mpSelection.populateTopics();
       });
   }
-
-  function findCategory(id) {
-    return packsData.categories.find((c) => c.id === id);
-  }
-
-  function onTopicChanged() {
-    const [kind, id] = $('topic-select').value.split(':');
-    if (kind === 'category') {
-      const cat = findCategory(id);
-      $('subtopic-wrap').hidden = false;
-      const sub = $('subtopic-select');
-      sub.innerHTML = '';
-      const allOpt = document.createElement('option');
-      allOpt.value = 'ALL';
-      allOpt.textContent = `Все темы раздела (из ${cat ? cat.totalCount : 0})`;
-      sub.appendChild(allOpt);
-      for (const t of cat ? cat.topics : []) {
-        const opt = document.createElement('option');
-        opt.value = t.id;
-        opt.textContent = `${t.title} (${t.count})`;
-        sub.appendChild(opt);
-      }
-    } else {
-      $('subtopic-wrap').hidden = true;
-    }
-    updateCountBounds();
-  }
-
-  function availableQuestionCount() {
-    const [kind, id] = $('topic-select').value.split(':');
-    if (kind === 'all') return packsData.overallCount;
-    if (kind === 'category') {
-      const cat = findCategory(id);
-      if (!cat) return 0;
-      const subVal = $('subtopic-select').value;
-      if (subVal === 'ALL') return cat.totalCount;
-      const t = cat.topics.find((t) => t.id === subVal);
-      return t ? t.count : 0;
-    }
-    const p = packsData.standalone.find((p) => p.id === id);
-    return p ? p.count : 0;
-  }
-
-  function updateCountBounds() {
-    const max = Math.max(1, availableQuestionCount());
-    const input = $('count-input');
-    input.max = max;
-    input.min = 1;
-    if (!input.value || Number(input.value) > max) {
-      input.value = Math.min(packsData.defaultCount || 10, max);
-    }
-  }
-
-  function buildSelection() {
-    const [kind, id] = $('topic-select').value.split(':');
-    const max = Math.max(1, availableQuestionCount());
-    const count = Math.min(max, Math.max(1, Number($('count-input').value) || 1));
-    if (kind === 'all') return { kind: 'all', count };
-    if (kind === 'category') {
-      const subVal = $('subtopic-select').value;
-      if (subVal === 'ALL') return { kind: 'category', categoryId: id, count };
-      return { kind: 'pack', packId: subVal, count };
-    }
-    return { kind: 'pack', packId: id, count };
-  }
-
-  $('topic-select').addEventListener('change', onTopicChanged);
-  $('subtopic-select').addEventListener('change', updateCountBounds);
-
-  $('count-input').addEventListener('change', () => {
-    const max = Math.max(1, availableQuestionCount());
-    const input = $('count-input');
-    const v = Number(input.value);
-    if (!v || v < 1) input.value = 1;
-    else if (v > max) input.value = max;
-  });
 
   function handleMessage(msg) {
     switch (msg.type) {
@@ -375,6 +392,7 @@
 
       case 'error':
         $('home-error').textContent = msg.message;
+        $('mp-error').textContent = msg.message;
         $('lobby-error').textContent = msg.message;
         setRoomButtonsDisabled(false);
         $('btn-play-again').disabled = false;
@@ -771,6 +789,12 @@
     $('join-toggle').querySelector('.topic-caret').textContent = body.hidden ? '▾' : '▴';
   });
 
+  $('btn-multiplayer').addEventListener('click', () => {
+    $('mp-error').textContent = '';
+    showScreen('multiplayer');
+  });
+  $('btn-multiplayer-back').addEventListener('click', () => showScreen('home'));
+
   $('btn-ratings-back').addEventListener('click', () => showScreen('home'));
 
   $('btn-profile-back').addEventListener('click', () => showScreen('home'));
@@ -818,10 +842,11 @@
 
   function createRoom(mode) {
     const name = (nameInput.value || 'Игрок').trim().slice(0, 24);
-    const selection = buildSelection();
+    const selection = (mode === 'multiplayer' ? mpSelection : homeSelection).buildSelection();
     lastGameRequest = { mode, selection }; // remembered so "Играть снова" can repeat it
     localStorage.setItem('quiz_name', name);
     $('home-error').textContent = '';
+    $('mp-error').textContent = '';
     setRoomButtonsDisabled(true);
     send({ type: 'create_room', name, selection, mode });
   }
