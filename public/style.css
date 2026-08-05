@@ -165,11 +165,12 @@ h2 { font-size: 1.15rem; margin: 0 0 12px; }
   cursor: pointer;
 }
 
-.collapsible-header {
-  cursor: pointer;
+.join-toggle-btn {
   display: flex;
-  justify-content: space-between;
   align-items: center;
+  justify-content: center;
+  gap: 6px;
+  margin-bottom: 16px;
 }
 
 .topic-card {

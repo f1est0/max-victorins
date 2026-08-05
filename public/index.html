@@ -58,12 +58,10 @@
         <button id="btn-create" class="btn primary">Создать комнату (мультиплеер)</button>
       </div>
 
-      <div class="card">
-        <h2 id="join-toggle" class="collapsible-header">Присоединиться<span class="topic-caret">▾</span></h2>
-        <div id="join-body" hidden>
-          <input id="code-input" maxlength="5" placeholder="КОД КОМНАТЫ" style="text-transform:uppercase" />
-          <button id="btn-join" class="btn">Войти по коду</button>
-        </div>
+      <button id="join-toggle" class="btn join-toggle-btn" type="button">Присоединиться <span class="topic-caret">▾</span></button>
+      <div id="join-body" class="card" hidden>
+        <input id="code-input" maxlength="5" placeholder="КОД КОМНАТЫ" style="text-transform:uppercase" />
+        <button id="btn-join" class="btn">Войти по коду</button>
       </div>
 
       <button id="btn-ratings" class="btn">🏆 Рейтинги</button>
