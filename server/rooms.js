@@ -64,12 +64,13 @@ class Room {
     this.onGameOver = null; // optional (results) => void, set by the server layer
   }
 
-  addPlayer(id, name, ws, maxUserId) {
+  addPlayer(id, name, ws, maxUserId, avatarUrl) {
     this.players.set(id, {
       id,
       name,
       ws,
       maxUserId: maxUserId || null,
+      avatarUrl: avatarUrl || null,
       score: 0,
       wrong: 0,
       answered: null,
@@ -91,6 +92,7 @@ class Room {
       id: BOT_ID,
       name: BOT_NAME,
       ws: null,
+      avatarUrl: '/logo.png',
       score: 0,
       wrong: 0,
       answered: null,
@@ -127,6 +129,7 @@ class Room {
     return Array.from(this.players.values()).map((p) => ({
       id: p.id,
       name: p.name,
+      avatarUrl: p.avatarUrl,
       score: p.score,
       wrong: p.wrong,
       distractions: p.distractions,
@@ -347,6 +350,7 @@ class Room {
     const roundResults = Array.from(this.players.values()).map((p) => ({
       id: p.id,
       name: p.name,
+      avatarUrl: p.avatarUrl,
       answerText: p.lastAnswerActualIndex != null ? optionLabel(q.options[p.lastAnswerActualIndex]) : null,
       correct: p.lastAnswerActualIndex === q.correctIndex,
       scoreDelta: p.roundScoreDelta,

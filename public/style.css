@@ -491,6 +491,16 @@ input[type="number"]::-webkit-inner-spin-button {
 
 .leaderboard li .rank { color: var(--accent); font-weight: 700; margin-right: 8px; }
 
+.rank-avatar {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  object-fit: cover;
+  margin-right: 8px;
+  vertical-align: middle;
+  flex-shrink: 0;
+}
+
 .score-box {
   display: inline-flex;
   gap: 6px;
@@ -527,24 +537,51 @@ input[type="number"]::-webkit-inner-spin-button {
 #q-timer { font-weight: 700; color: var(--accent); }
 #q-timer.urgent { color: var(--wrong); }
 
-.answers-list {
+.answer-squares {
   list-style: none;
   padding: 0;
   margin: 0 0 16px;
-}
-
-.answers-list li {
-  background: var(--card);
-  padding: 10px 14px;
-  border-radius: 10px;
-  margin-bottom: 6px;
   display: flex;
-  justify-content: space-between;
-  font-size: .9rem;
+  flex-wrap: wrap;
+  gap: 10px;
+  justify-content: center;
 }
 
-.answers-list li.answer-row-correct { background: var(--correct); color: #06210f; }
-.answers-list li.answer-row-wrong { background: var(--wrong); color: #2a0505; }
+.answer-square {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: 10px;
+  border-radius: 12px;
+  min-width: 74px;
+}
+
+.answer-square-correct { background: var(--correct); color: #06210f; }
+.answer-square-wrong { background: var(--wrong); color: #2a0505; }
+
+.answer-square-avatar {
+  width: 50px;
+  height: 50px;
+  border-radius: 8px;
+  object-fit: cover;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, .15);
+  font-weight: 700;
+  font-size: 1.3rem;
+}
+
+.answer-square-name {
+  font-size: .8rem;
+  font-weight: 600;
+  text-align: center;
+  max-width: 90px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
 
 #q-media { margin: 12px 0; }
 

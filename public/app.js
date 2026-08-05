@@ -647,8 +647,11 @@
     ul.innerHTML = '';
     for (const r of roundResults) {
       const li = document.createElement('li');
-      li.className = r.correct ? 'answer-row-correct' : 'answer-row-wrong';
-      li.innerHTML = `<span>${esc(r.name)}</span>`;
+      li.className = 'answer-square ' + (r.correct ? 'answer-square-correct' : 'answer-square-wrong');
+      const avatarHtml = r.avatarUrl
+        ? `<img class="answer-square-avatar" src="${esc(r.avatarUrl)}" alt="" />`
+        : `<span class="answer-square-avatar answer-square-initial">${esc((r.name || '?').charAt(0).toUpperCase())}</span>`;
+      li.innerHTML = `${avatarHtml}<span class="answer-square-name">${esc(r.name)}</span>`;
       ul.appendChild(li);
     }
   }
@@ -729,7 +732,10 @@
         `<span class="score-correct" title="Верных ответов">${esc(p.score)}</span>` +
         `<span class="score-wrong" title="Неверных ответов">${esc(p.wrong || 0)}</span>` +
         `</span>`;
-      li.innerHTML = `<span><span class="rank">${i + 1}.</span>${esc(p.name)}${badges}</span>${scoreBoxes}`;
+      const avatarHtml = p.avatarUrl
+        ? `<img class="rank-avatar" src="${esc(p.avatarUrl)}" alt="" />`
+        : `<span class="rank">${i + 1}.</span>`;
+      li.innerHTML = `<span>${avatarHtml}${esc(p.name)}${badges}</span>${scoreBoxes}`;
       ol.appendChild(li);
     });
   }

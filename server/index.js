@@ -588,7 +588,7 @@ wss.on('connection', (ws) => {
         const name = resolveName(authedProfile, msg.name, 'Хост');
         currentRoom = rooms.create(clientId, pack, mode);
         currentRoom.onGameOver = (results) => handleGameOver(mode, results);
-        currentRoom.addPlayer(clientId, name, ws, authedProfile ? authedProfile.id : null);
+        currentRoom.addPlayer(clientId, name, ws, authedProfile ? authedProfile.id : null, authedProfile ? authedProfile.photoUrl : null);
         if (mode === 'bot') currentRoom.addBot();
         ws.send(JSON.stringify({
           type: 'room_created',
@@ -624,7 +624,7 @@ wss.on('connection', (ws) => {
         const name = resolveName(authedProfile, msg.name, 'Игрок');
         if (room !== currentRoom) leaveRoomNow(); // vacate any other room first; re-joining the same one is a no-op
         currentRoom = room;
-        room.addPlayer(clientId, name, ws, authedProfile ? authedProfile.id : null);
+        room.addPlayer(clientId, name, ws, authedProfile ? authedProfile.id : null, authedProfile ? authedProfile.photoUrl : null);
         ws.send(JSON.stringify({
           type: 'room_created',
           code: room.code,
