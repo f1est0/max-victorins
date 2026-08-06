@@ -143,6 +143,12 @@
   });
 
   let packsData = { standalone: [], categories: [], overallCount: 0, maxQuestions: 30, defaultCount: 10 };
+  // The /api/packs fetch and the 'custom_packs' WS reply race each other — the
+  // WS round-trip usually wins. Until packsData actually has real numbers,
+  // rebuilding the topic list would show "0 questions" and collapse the count
+  // field to 1. Skip those premature rebuilds; loadPacks() rebuilds everything
+  // (library topics + whatever custom packs arrived by then) once it's ready.
+  let packsDataLoaded = false;
 
   function findCategory(id) {
     return packsData.categories.find((c) => c.id === id);
@@ -287,6 +293,7 @@
       .then((r) => r.json())
       .then((data) => {
         packsData = data;
+        packsDataLoaded = true;
         homeSelection.populateTopics();
         mpSelection.populateTopics();
       });
@@ -395,7 +402,7 @@
       case 'custom_packs':
         myCustomPacks = msg.packs;
         renderMyPacks(msg.packs);
-        mpSelection.populateTopics();
+        if (packsDataLoaded) mpSelection.populateTopics();
         break;
 
       case 'custom_pack_result': {
@@ -404,7 +411,7 @@
         $('pb-error').textContent = errorText;
         myCustomPacks = msg.packs;
         renderMyPacks(msg.packs);
-        mpSelection.populateTopics();
+        if (packsDataLoaded) mpSelection.populateTopics();
         if (msg.ok) {
           pbResetAll();
           showScreen('profile');
