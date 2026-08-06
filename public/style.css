@@ -575,6 +575,14 @@ input[type="number"]::-webkit-inner-spin-button {
   font-size: 1.3rem;
 }
 
+/* The square itself is already green/red, so the score badges need a
+   neutral background of their own — otherwise a red "wrong" badge on a
+   green square (or vice versa) reads as almost invisible. */
+.answer-square .score-correct,
+.answer-square .score-wrong {
+  background: #000;
+}
+
 .answer-square-name {
   font-size: .8rem;
   font-weight: 600;
