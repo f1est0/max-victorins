@@ -354,6 +354,8 @@ class Room {
       answerText: p.lastAnswerActualIndex != null ? optionLabel(q.options[p.lastAnswerActualIndex]) : null,
       correct: p.lastAnswerActualIndex === q.correctIndex,
       scoreDelta: p.roundScoreDelta,
+      score: p.score,
+      wrong: p.wrong,
     }));
 
     for (const p of this.players.values()) {

@@ -618,8 +618,10 @@
       else if (i === currentOptionIndex) b.classList.add('wrong');
     });
 
-    $('reveal-title').textContent = 'Правильный ответ дали';
-    renderRoundAnswers(msg.roundResults || []);
+    const results = msg.roundResults || [];
+    const correctCount = results.filter((r) => r.correct).length;
+    $('reveal-title').textContent = `Правильный ответ дали: ${correctCount} из ${results.length}`;
+    renderRoundAnswers(results);
 
     const revealDeadline = Date.now() + (msg.revealTimeMs || 4000);
     function updateRevealCountdown() {
@@ -649,7 +651,12 @@
       const avatarHtml = r.avatarUrl
         ? `<img class="answer-square-avatar" src="${esc(r.avatarUrl)}" alt="" />`
         : `<span class="answer-square-avatar answer-square-initial">${esc((r.name || '?').charAt(0).toUpperCase())}</span>`;
-      li.innerHTML = `${avatarHtml}<span class="answer-square-name">${esc(r.name)}</span>`;
+      const scoreBoxes =
+        `<span class="score-box">` +
+        `<span class="score-correct" title="Верных ответов">${esc(r.score)}</span>` +
+        `<span class="score-wrong" title="Неверных ответов">${esc(r.wrong || 0)}</span>` +
+        `</span>`;
+      li.innerHTML = `${avatarHtml}<span class="answer-square-name">${esc(r.name)}</span>${scoreBoxes}`;
       ul.appendChild(li);
     }
   }
