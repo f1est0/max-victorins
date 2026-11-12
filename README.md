@@ -66,6 +66,19 @@ cp .env.example .env
 4. В настройках своего бота Max укажите HTTPS-адрес мини-приложения. При использовании вебхука настройте адрес `https://ВАШ-ДОМЕН/bot/webhook/ВАШ_WEBHOOK_SECRET` для событий бота.
 5. Запустите сервер для проверки командой `cd server && npm start`. Он слушает только `127.0.0.1:3000`; `PORT` можно задать переменной окружения процесса. Проверка доступности: `curl http://127.0.0.1:3000/healthz`. Для игры нужна действительная подпись Max и правильный токен: напрямую в браузере играть нельзя.
 
+### Сертификат Минцифры для API Max
+
+Для исходящих запросов бота к `platform-api2.max.ru` Node.js должен доверять корневому сертификату Минцифры. Получите актуальный корневой сертификат на [Госуслугах](https://www.gosuslugi.ru/crt), сохраните его на сервере в формате PEM, например `/etc/ssl/certs/russian-trusted-root-ca.pem`, и убедитесь, что файл доступен для чтения пользователю службы. Рекомендация добавить сертификат в доверенные приведена в [документации Max](https://dev.max.ru/docs-api/methods/POST/subscriptions/).
+
+Перед запуском передайте путь через `NODE_EXTRA_CA_CERTS`: эта переменная расширяет список доверенных сертификатов Node.js и считывается при запуске процесса. Например:
+
+```bash
+cd server
+NODE_EXTRA_CA_CERTS=/etc/ssl/certs/russian-trusted-root-ca.pem npm start
+```
+
+Это настройка доверия для соединения приложения с API Max. HTTPS-сертификат своего домена для nginx настраивается отдельно. Подробнее о переменной - в [документации Node.js](https://nodejs.org/download/release/latest-v20.x/docs/api/cli.html#node_extra_ca_certsfile).
+
 Пример `/etc/systemd/system/quiz-app.service`: замените пользователя и путь на свои абсолютные значения.
 
 ```ini
@@ -78,6 +91,7 @@ Type=simple
 User=quiz
 WorkingDirectory=/opt/max-victorins/server
 Environment=PORT=3000
+Environment=NODE_EXTRA_CA_CERTS=/etc/ssl/certs/russian-trusted-root-ca.pem
 ExecStart=/usr/bin/node index.js
 Restart=on-failure
 
