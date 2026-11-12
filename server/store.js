@@ -5,9 +5,9 @@ const DATA_DIR = path.join(__dirname, '..', 'data');
 const DATA_FILE = path.join(DATA_DIR, 'users.json');
 const DEFAULT_RATING = 1000;
 const ABORT_PENALTY = 20;
-const BOT_OPPONENT_RATING = 1000; // fixed virtual rating standing in for the bot's difficulty
+const BOT_OPPONENT_RATING = 1000; // условный рейтинг бота, отражающий его сложность
 
-let users = {}; // maxUserId (string) -> profile
+let users = {}; // идентификатор пользователя Max (строка) → профиль
 
 function load() {
   if (!fs.existsSync(DATA_FILE)) return;
@@ -26,18 +26,14 @@ let dirty = false;
 function writeNow() {
   if (!dirty) return;
   if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true });
-  // Write to a temp file and rename over the original — rename is atomic on
-  // POSIX, so a crash mid-write can never leave users.json half-written/corrupt.
+  // В POSIX запись во временный файл и атомарное переименование защищают файл от повреждения при сбое.
   const tmpFile = `${DATA_FILE}.${process.pid}.tmp`;
   fs.writeFileSync(tmpFile, JSON.stringify(users, null, 2));
   fs.renameSync(tmpFile, DATA_FILE);
   dirty = false;
 }
 
-// Marks the store dirty and schedules one write shortly after. Without this,
-// every single connection rewrote the whole file synchronously (getOrCreate
-// touches lastSeenAt on each auth), which blocks the event loop as the user
-// count grows. flush() below runs on shutdown so nothing is lost on restart.
+// Отложенная запись не блокирует цикл событий при каждом подключении; при остановке вызывается flush().
 function save() {
   dirty = true;
   if (saveTimer) return;
@@ -103,8 +99,7 @@ function getOrCreate(userInfo) {
   return p;
 }
 
-// Profiles created before the bot leaderboard existed won't have these fields —
-// backfill them on the fly so old accounts don't produce NaN ratings.
+// Старым профилям добавляются поля рейтинга против бота, чтобы избежать NaN.
 function ensureBotFields(p) {
   if (p.ratingVsBot == null) p.ratingVsBot = DEFAULT_RATING;
   if (p.botGamesPlayed == null) p.botGamesPlayed = 0;
@@ -129,9 +124,7 @@ function setBanned(id, banned) {
   return p;
 }
 
-// Wipes ratings/game counters/per-topic accuracy back to a fresh account's
-// values. Leaves identity (name/photo), ban status, and custom packs alone —
-// this is for clearing stats, not the account itself.
+// Сбрасывает игровую статистику, сохраняя личные данные, бан и пользовательские наборы.
 function resetStats(id) {
   const p = users[String(id)];
   if (!p) return null;
@@ -154,7 +147,7 @@ function expectedScore(ratingA, ratingB) {
   return 1 / (1 + Math.pow(10, (ratingB - ratingA) / 400));
 }
 
-// score: 1 = win, 0.5 = draw, 0 = loss (from A's perspective)
+// score: 1 - победа, 0.5 - ничья, 0 - поражение игрока A.
 function applyEloResult(idA, idB, scoreA, kFactor = 32) {
   const a = users[String(idA)];
   const b = users[String(idB)];
@@ -185,7 +178,7 @@ function applyAbortPenalty(id) {
   save();
 }
 
-// score: 1 = beat the bot, 0.5 = tied, 0 = lost to the bot
+// score: 1 - победа над ботом, 0.5 - ничья, 0 - поражение.
 function applyBotResult(id, score, kFactor = 32) {
   const p = users[String(id)];
   if (!p) return;
@@ -202,11 +195,7 @@ function applyBotResult(id, score, kFactor = 32) {
   save();
 }
 
-// tally: { [packId]: { categoryId, categoryTitle, packTitle, correct, total } },
-// built per-game in rooms.js from questions tagged with topic metadata. Only
-// library packs carry that tagging (see loadPacks in index.js) — any future
-// custom pack made by players for friend games simply won't have it, so it
-// never shows up here without extra filtering.
+// tally: { [packId]: { categoryId, categoryTitle, packTitle, correct, total } }. Статистика собирается в rooms.js только для библиотечных вопросов с метками тем.
 function recordTopicStats(id, tally) {
   if (!tally) return;
   const p = users[String(id)];
@@ -225,9 +214,7 @@ function recordTopicStats(id, tally) {
   save();
 }
 
-// Groups per-pack stats into per-category totals (e.g. "Медицина" summed
-// across all its subtopics), with the individual packs nested underneath for
-// the expandable panel. Sorted weakest-accuracy-first so problem areas surface.
+// Объединяет статистику по категориям и сортирует их по возрастанию точности.
 function getTopicStats(id) {
   const p = users[String(id)];
   if (!p || !p.topicStats) return [];
@@ -258,8 +245,7 @@ function getTopicStats(id) {
 
 function listBotLeaderboard(limit = 50) {
   return Object.values(users)
-    // Banned players are kept out of the standings entirely — there's a prize
-    // attached to the top places, so a banned cheater must not hold one.
+    // Забаненные игроки исключаются из таблицы лидеров.
     .filter((u) => u.botGamesPlayed > 0 && !u.banned)
     .sort((a, b) => b.ratingVsBot - a.ratingVsBot)
     .slice(0, limit)

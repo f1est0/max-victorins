@@ -1,11 +1,11 @@
 const crypto = require('crypto');
 
-const CODE_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; // no 0/O/1/I
-const QUESTION_TIME_MS = 12000; // short window: enough to know the answer, too tight to google it
+const CODE_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; // без похожих символов 0/O/1/I
+const QUESTION_TIME_MS = 12000; // времени достаточно для ответа, но недостаточно для поиска
 const REVEAL_TIME_MS = 4000;
-const FAST_ANSWER_MS = 1200; // correct answers faster than this are flagged as suspicious
-const SUDDEN_DEATH_MS = 5000; // once someone answers in multiplayer, everyone else gets this long
-const ANSWER_CONFIRM_DELAY_MS = 1500; // pause before reveal when everyone finishes early, so the last answer's own color has time to register
+const FAST_ANSWER_MS = 1200; // более быстрые правильные ответы помечаются как подозрительные
+const SUDDEN_DEATH_MS = 5000; // после первого ответа в мультиплеере столько времени остаётся остальным
+const ANSWER_CONFIRM_DELAY_MS = 1500; // пауза перед раскрытием ответа, чтобы игрок увидел цвет своего ответа
 
 function optionLabel(opt) {
   if (opt == null) return null;
@@ -35,8 +35,7 @@ function shuffledIndices(n) {
 const BOT_ID = 'bot';
 const BOT_NAME = 'Бот';
 
-// Bot difficulty: 1 (easy) .. 5 (very hard) — change this one number to retune the bot.
-// Higher difficulty means it answers correctly more often AND reacts faster.
+// Сложность бота: от 1 до 5; повышение увеличивает точность и скорость ответов.
 const BOT_DIFFICULTY = 3;
 const BOT_DIFFICULTY_SETTINGS = {
   1: { accuracy: 0.40, minDelayMs: 3000, maxDelayMs: 11000 },
@@ -61,7 +60,7 @@ class Room {
     this.botTimer = null;
     this.questionStartedAt = 0;
     this.firstAnswerReceived = false;
-    this.onGameOver = null; // optional (results) => void, set by the server layer
+    this.onGameOver = null; // необязательный обработчик (results) => void, задаётся сервером
   }
 
   addPlayer(id, name, ws, maxUserId, avatarUrl) {
@@ -82,8 +81,8 @@ class Room {
       roundScoreDelta: 0,
       lastAnswerActualIndex: null,
       disconnectTimer: null,
-      answerHistory: [], // questions this player got wrong, for the end-of-game review
-      topicTally: {}, // per-pack correct/total, for the profile's per-topic accuracy stats
+      answerHistory: [], // вопросы с неверным ответом для разбора после игры
+      topicTally: {}, // количество верных и всех ответов по наборам для статистики
     });
   }
 
@@ -205,7 +204,7 @@ class Room {
 
     if (this.questionIndex >= this.pack.questions.length) {
       this.state = 'finished';
-      // Sent per player rather than broadcast: the mistake review is personal.
+      // Разбор ошибок отправляется каждому игроку отдельно.
       const finalBoard = this.leaderboard();
       for (const p of this.players.values()) {
         if (p.isBot) continue;
@@ -242,8 +241,7 @@ class Room {
         p.optionMap = null;
         continue;
       }
-      // Each player gets their own shuffled option order, so reading
-      // someone else's screen (or the answer for a different position) doesn't help.
+      // Каждый игрок получает свой случайный порядок вариантов ответов.
       p.optionMap = null;
       this.sendTo(p.id, this.questionPayloadFor(p, QUESTION_TIME_MS));
     }
@@ -291,7 +289,7 @@ class Room {
     const elapsed = Date.now() - this.questionStartedAt;
     const actualIndex = p.optionMap ? p.optionMap[optionIndex] : optionIndex;
     const correct = actualIndex === q.correctIndex;
-    const scoreDelta = correct ? 1 : 0; // one point per correct answer — this isn't a rated match, just count right answers
+    const scoreDelta = correct ? 1 : 0; // одно очко за правильный ответ в нерейтинговой игре
 
     p.answered = optionIndex;
     p.score += scoreDelta;
@@ -316,8 +314,7 @@ class Room {
       return;
     }
 
-    // Sudden death: once anyone answers in a multiplayer room, cap everyone
-    // else's remaining time so they can't wander off to look the answer up.
+    // После первого ответа в мультиплеере ограничиваем оставшееся время остальных игроков.
     if (this.mode === 'multiplayer' && !p.isBot && !this.firstAnswerReceived) {
       this.firstAnswerReceived = true;
       const remainingOriginal = QUESTION_TIME_MS - elapsed;
@@ -340,8 +337,7 @@ class Room {
     this.state = 'reveal';
     const q = this.currentQuestion();
 
-    // Tally this round's misses first, so the board sent below already reflects
-    // the question that just closed. Bots count too — they're on the board.
+    // Сначала учитываем ошибки текущего раунда, включая ошибки бота.
     for (const p of this.players.values()) {
       if (p.lastAnswerActualIndex !== q.correctIndex) p.wrong += 1;
     }
@@ -361,9 +357,7 @@ class Room {
     for (const p of this.players.values()) {
       if (p.isBot) continue;
 
-      // Only library questions carry topic tags (see loadPacks in index.js) —
-      // one-off packs built for private friend games won't, and are silently
-      // excluded from profile stats as a result.
+      // В статистику попадают только библиотечные вопросы с метками тем.
       if (q._topicPackId) {
         const t = p.topicTally[q._topicPackId] || (p.topicTally[q._topicPackId] = {
           categoryId: q._topicCategoryId,
@@ -376,8 +370,7 @@ class Room {
         if (p.lastAnswerActualIndex === q.correctIndex) t.correct += 1;
       }
 
-      // Remember every question this player didn't get right (wrong answer or
-      // no answer at all) so the end-of-game screen can walk them through it.
+      // Сохраняем неверные и пропущенные ответы для разбора после игры.
       if (p.lastAnswerActualIndex !== q.correctIndex) {
         p.answerHistory.push({
           number: this.questionIndex + 1,

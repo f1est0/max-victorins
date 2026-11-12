@@ -69,9 +69,7 @@ function normalizeText(text) {
     .trim();
 }
 
-// Validates and trims down a raw pack payload sent by a player. Kept strict —
-// this is untrusted input reaching the JSON store directly, not admin-curated
-// content, so every field is length-capped and shape-checked.
+// Проверяет и ограничивает присланный игроком набор: недоверенные данные записываются непосредственно в хранилище.
 function validatePack(raw) {
   if (!raw || typeof raw !== 'object') return { ok: false, error: 'Некорректный формат' };
   const title = String(raw.title || '').trim().slice(0, 60);

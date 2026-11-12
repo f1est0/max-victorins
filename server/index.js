@@ -10,7 +10,7 @@ const customPacks = require('./customPacks');
 const { sendMessage } = require('./botApi');
 const { ADMIN_USER_IDS, WEBHOOK_SECRET } = require('./env');
 
-const WELCOME_MESSAGE = `Привет! 👋 Это бот-викторина «Знариум».
+const WELCOME_MESSAGE = `Привет! 👋 Это бот-викторина.
 
 Внутри мини-приложение с реалтайм-викторинами:
 🎮 Играйте один, против бота (20 вопросов на матч) или с друзьями в мультиплеере по коду комнаты
@@ -34,9 +34,7 @@ function isAdminId(id) {
   return id != null && ADMIN_USER_IDS.includes(String(id));
 }
 
-// Shared by the initial 'auth' handshake and anything that changes a
-// currently-connected player's own stats (e.g. an admin resetting their own
-// account) — so their home screen shows fresh numbers without a reload.
+// Общий ответ для авторизации и обновления статистики игрока без перезагрузки.
 function buildAuthResultPayload(profile) {
   return {
     type: 'auth_result',
@@ -56,10 +54,7 @@ function buildAuthResultPayload(profile) {
   };
 }
 
-// Verified players always play under their real MAX name — the client can't
-// override it by sending a different `name` in the message. Only unverified
-// guests (testing outside MAX, no signed initData) fall back to whatever
-// they typed.
+// Проверенный игрок использует имя из Max; неподтверждённый гость использует введённое имя.
 function resolveName(profile, fallbackRaw, fallbackDefault) {
   if (profile) {
     const fullName = [profile.firstName, profile.lastName].filter(Boolean).join(' ').trim();
@@ -68,26 +63,20 @@ function resolveName(profile, fallbackRaw, fallbackDefault) {
   return String(fallbackRaw || fallbackDefault).slice(0, 24);
 }
 
-// Fully removes a player right now (no grace period) — used for explicit,
-// intentional leaves ("Назад" / confirmed "Прервать"), as opposed to a socket
-// just dropping, which gets a reconnect window instead.
+// Немедленный выход по инициативе игрока; при обрыве даётся время на переподключение.
 function removeFromRoomNow(rooms, room, clientId, profile) {
-  // Walking out of a live match counts against you. This has to run before the
-  // host branch below: in solo/bot rooms the player IS the host, so an early
-  // return there would skip the penalty entirely and let someone farm the
-  // leaderboard by quitting every game they're about to lose.
+  // Выход из матча учитывается до обработки выхода ведущего, чтобы нельзя было избежать штрафа.
   const gameInProgress = room.state === 'question' || room.state === 'reveal';
   if (gameInProgress && profile) {
     if (room.mode === 'bot') {
-      store.applyBotResult(profile.id, 0); // scored as a loss to the bot
+      store.applyBotResult(profile.id, 0); // засчитывается поражение от бота
     } else if (room.mode === 'matchmaking') {
       store.applyAbortPenalty(profile.id);
     }
   }
 
   if (room.hostId === clientId) {
-    // The host leaving strands everyone else in an unwinnable "waiting for
-    // host" state — close the whole room for everyone instead.
+    // При выходе ведущего комната закрывается для всех.
     room.clearTimer();
     room.broadcast({ type: 'room_closed', reason: 'host_left' }, clientId);
     rooms.delete(room.code);
@@ -101,11 +90,7 @@ function removeFromRoomNow(rooms, room, clientId, profile) {
   }
 }
 
-// The general rating only applies to matchmade games (not yet built), not
-// solo/private code-based rooms with friends — those stay purely for fun.
-// Bot games get their own separate leaderboard/rating (see below), since
-// beating a fixed-difficulty bot means something different from beating a
-// real ranked opponent.
+// Общий рейтинг предназначен для будущего подбора соперников; у игр с ботом отдельный рейтинг.
 function handleGameOver(mode, results) {
   for (const r of results) {
     if (r.maxUserId && r.topicTally) store.recordTopicStats(r.maxUserId, r.topicTally);
@@ -161,13 +146,13 @@ const MIME = {
   '.m4a': 'audio/mp4',
 };
 
-const DEFAULT_QUESTION_COUNT = 10; // used when the client doesn't ask for a specific count
-const MAX_QUESTIONS_PER_GAME = 200; // sanity ceiling only — the real limit is however many questions the selection actually has
-const BOT_GAME_QUESTION_COUNT = 20; // vs-bot matches always use this many questions from the chosen topic
+const DEFAULT_QUESTION_COUNT = 10; // используется, если клиент не указал количество
+const MAX_QUESTIONS_PER_GAME = 200; // верхний предел; фактическое число ограничено доступными вопросами
+const BOT_GAME_QUESTION_COUNT = 20; // число вопросов по выбранной теме в игре с ботом
 
 function loadPacks() {
   const packs = {};
-  const categoryMeta = {}; // top-level folder id -> { title }
+  const categoryMeta = {}; // идентификатор папки верхнего уровня → { title }
 
   function walk(dir, prefix) {
     for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
@@ -185,10 +170,7 @@ function loadPacks() {
         const baseName = path.basename(entry.name, '.json');
         const id = prefix ? `${prefix}/${baseName}` : baseName;
         const pack = JSON.parse(fs.readFileSync(fullPath, 'utf8'));
-        // Tag each question with where it came from, so per-topic accuracy stats
-        // can be tallied later without any extra bookkeeping at game time. The
-        // top-level folder (or the pack itself, if it's not in a folder) is the
-        // "category" shown on the profile; the pack is the expandable subtopic.
+        // Помечаем вопросы категорией и набором для статистики по темам.
         const categoryId = prefix ? prefix.split('/')[0] : id;
         const categoryTitle = prefix
           ? (categoryMeta[categoryId] ? categoryMeta[categoryId].title : categoryId)
@@ -217,17 +199,14 @@ function shuffleArray(arr) {
   return copy;
 }
 
-// Builds a one-off pack {title, questions} for a game session from a client
-// selection — either a single pack (optionally capped/randomized to `count`
-// questions) or a whole category mixed together and randomly sampled.
+// Создаёт набор на игру из выбранного набора или случайных вопросов категории.
 function buildEffectivePack(selection, requesterId) {
   if (!selection || typeof selection !== 'object') return null;
   const count = Math.max(1, Math.min(MAX_QUESTIONS_PER_GAME, Number(selection.count) || DEFAULT_QUESTION_COUNT));
 
   if (selection.kind === 'custom') {
     const custom = customPacks.get(selection.customPackId);
-    // Only the pack's own creator can put it into a game — a friend joining by
-    // room code just plays whatever the host picked, they never choose it.
+    // Выбрать пользовательский набор может только его автор; друзья играют с выбором ведущего.
     if (!custom || custom.ownerId !== String(requesterId)) return null;
     return {
       title: custom.title,
@@ -269,12 +248,7 @@ function buildEffectivePack(selection, requesterId) {
 let { packs, categoryMeta } = loadPacks();
 const rooms = new RoomManager();
 
-// Flags exact-duplicate questions (same text, ignoring case/punctuation) across
-// every loaded pack, so a copy-pasted question doesn't silently double a topic's
-// question count. Fuzzy/near-duplicate matching is intentionally out of scope —
-// exact-normalized matching is what would have caught real past duplicates
-// without false-positiving on two genuinely different questions that just share
-// some wording.
+// Находит точные дубликаты вопросов без учёта регистра и пунктуации.
 function normalizeQuestionText(text) {
   return String(text || '')
     .toLowerCase()
@@ -310,9 +284,7 @@ function logDuplicates() {
 
 logDuplicates();
 
-// Watches questions/ (including subfolders, added manually since Node's
-// fs.watch recursive option isn't reliable on Linux) and hot-reloads packs on
-// any change, so a new/edited pack file just needs uploading — no restart.
+// Следит за questions и подпапками и обновляет наборы без перезапуска; подпапки подключаются отдельно для Linux.
 const watchedDirs = new Set();
 let reloadTimer = null;
 
@@ -332,16 +304,16 @@ function scheduleReload() {
   clearTimeout(reloadTimer);
   reloadTimer = setTimeout(() => {
     reloadTimer = null;
-    watchAllDirs(); // pick up any newly created subfolders too
+    watchAllDirs(); // подключаем также новые подпапки
     reloadPacks();
-  }, 700); // debounce: an upload of several files fires several fs events
+  }, 700); // задержка объединяет события при загрузке нескольких файлов
 }
 
 function watchDir(dir) {
   if (watchedDirs.has(dir)) return;
   try {
     const watcher = fs.watch(dir, () => scheduleReload());
-    watcher.on('error', () => watchedDirs.delete(dir)); // e.g. dir got removed
+    watcher.on('error', () => watchedDirs.delete(dir)); // например, папка удалена
     watchedDirs.add(dir);
   } catch (e) {
     console.error(`[packs] failed to watch ${dir}:`, e.message);
@@ -441,22 +413,19 @@ const server = http.createServer((req, res) => {
 });
 
 const wss = new WebSocketServer({ server, path: '/ws' });
-const DISCONNECT_GRACE_MS = 45000; // window to reopen the app / reconnect before we give up the seat
+const DISCONNECT_GRACE_MS = 45000; // время на восстановление соединения до освобождения места
 
 wss.on('connection', (ws) => {
-  let clientId = crypto.randomUUID(); // may be replaced by a persistent session id via 'hello'
+  let clientId = crypto.randomUUID(); // может быть заменён постоянным идентификатором сессии через hello
   let currentRoom = null;
-  let authedProfile = null; // set once a valid, verified MAX initData comes in
+  let authedProfile = null; // заполняется после проверки initData от Max
 
-  // A closed socket doesn't immediately evict the player — it just marks them
-  // disconnected and starts a grace timer, so an accidental close / app kill
-  // (which fires 'close' well before the user gets a chance to reopen) doesn't
-  // instantly cost them their seat. Reconnecting via 'hello' cancels the timer.
+  // Отключение запускает таймер восстановления; повторное подключение через hello отменяет его.
   const leaveCurrentRoom = () => {
     if (!currentRoom) return;
     const player = currentRoom.players.get(clientId);
     if (!player || player.ws !== ws) {
-      // Either already gone, or this connection was superseded by a reconnect.
+      // Игрок уже вышел или подключился через другое соединение.
       currentRoom = null;
       return;
     }
@@ -468,16 +437,14 @@ wss.on('connection', (ws) => {
 
     player.disconnectTimer = setTimeout(() => {
       const stillThere = room.players.get(cid);
-      if (!stillThere || stillThere.ws) return; // reconnected in the meantime
+      if (!stillThere || stillThere.ws) return; // игрок уже переподключился
       removeFromRoomNow(rooms, room, cid, profile);
     }, DISCONNECT_GRACE_MS);
 
     currentRoom = null;
   };
 
-  // Explicit, immediate leave (no grace period) — used when a player deliberately
-  // exits, or when create_room/join_room needs to vacate a stale room first so a
-  // stray double-click can't leave an orphaned room behind.
+  // Немедленный выход освобождает старую комнату перед созданием или входом в другую.
   const leaveRoomNow = () => {
     if (!currentRoom) return;
     const player = currentRoom.players.get(clientId);
@@ -530,10 +497,7 @@ wss.on('connection', (ws) => {
         if (room.state === 'question') {
           const remaining = Math.max(0, QUESTION_TIME_MS - (Date.now() - room.questionStartedAt));
           payload.current = room.questionPayloadFor(player, remaining);
-          // If they'd already answered before dropping, replay that so the
-          // question doesn't come back looking untouched and clickable.
-          // The correct answer is safe to resend: they were told it the moment
-          // they answered, via answer_result.
+          // При переподключении восстанавливаем уже данный ответ и известный игроку правильный вариант.
           if (player.answered !== null) {
             const q = room.currentQuestion();
             payload.answered = {
@@ -570,8 +534,7 @@ wss.on('connection', (ws) => {
           return;
         }
         const mode = ['solo', 'bot'].includes(msg.mode) ? msg.mode : 'multiplayer';
-        // A bot match is always a fixed-length duel — the question-count field
-        // on the home screen only applies to solo/multiplayer.
+        // В игре с ботом число вопросов фиксировано; настройка относится к одиночной и сетевой игре.
         const selection = mode === 'bot'
           ? { ...msg.selection, count: BOT_GAME_QUESTION_COUNT }
           : msg.selection;
@@ -584,7 +547,7 @@ wss.on('connection', (ws) => {
           ws.send(JSON.stringify({ type: 'error', message: 'Пакет вопросов не найден' }));
           return;
         }
-        leaveRoomNow(); // in case this connection was already sitting in another room
+        leaveRoomNow(); // освобождаем прежнюю комнату этого соединения
         const name = resolveName(authedProfile, msg.name, 'Хост');
         currentRoom = rooms.create(clientId, pack, mode);
         currentRoom.onGameOver = (results) => handleGameOver(mode, results);
@@ -622,7 +585,7 @@ wss.on('connection', (ws) => {
           return;
         }
         const name = resolveName(authedProfile, msg.name, 'Игрок');
-        if (room !== currentRoom) leaveRoomNow(); // vacate any other room first; re-joining the same one is a no-op
+        if (room !== currentRoom) leaveRoomNow(); // освобождаем другую комнату; повторный вход в ту же ничего не меняет
         currentRoom = room;
         room.addPlayer(clientId, name, ws, authedProfile ? authedProfile.id : null, authedProfile ? authedProfile.photoUrl : null);
         ws.send(JSON.stringify({
@@ -746,9 +709,7 @@ wss.on('connection', (ws) => {
         const updated = store.resetStats(msg.userId);
         if (updated) {
           ws.send(JSON.stringify({ type: 'admin_users', users: store.list() }));
-          // Resetting your own account: refresh this connection's own cached
-          // profile too, otherwise the home screen keeps showing old numbers
-          // until the next reload/reconnect.
+          // При сбросе своего аккаунта обновляем профиль текущего соединения.
           if (String(updated.id) === String(authedProfile.id)) {
             authedProfile = updated;
             ws.send(JSON.stringify(buildAuthResultPayload(authedProfile)));
@@ -766,8 +727,7 @@ wss.on('connection', (ws) => {
   ws.on('error', leaveCurrentRoom);
 });
 
-// Saves are debounced, so make sure anything still pending hits the disk before
-// the process goes away (systemd sends SIGTERM on restart/stop).
+// Перед завершением процесса сохраняем изменения, ожидающие отложенной записи.
 let shuttingDown = false;
 function shutdown(signal) {
   if (shuttingDown) return;

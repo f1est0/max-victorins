@@ -1,14 +1,12 @@
 const crypto = require('crypto');
 const { BOT_TOKEN } = require('./env');
 
-const MAX_AUTH_AGE_SEC = 24 * 60 * 60; // reject initData older than this — limits replay of a leaked/logged string
+const MAX_AUTH_AGE_SEC = 24 * 60 * 60; // отклоняем устаревшие initData, чтобы ограничить повторное использование
 
-// Build a data-check-string from all initData fields (except hash), sorted
-// alphabetically as "key=value" joined by "\n", then HMAC-SHA256 it with a
-// derived secret key (same scheme as Telegram Mini Apps):
-//   secretKey = HMAC_SHA256("WebAppData", botToken)
-//   hash = HMAC_SHA256(secretKey, dataCheckString)
-// Confirmed against a real signed payload captured from inside MAX.
+// Строка проверки состоит из полей initData, кроме hash, отсортированных по имени и соединённых переводом строки. Подпись вычисляется по схеме Telegram Mini Apps:
+// secretKey = HMAC_SHA256("WebAppData", botToken)
+// hash = HMAC_SHA256(secretKey, dataCheckString)
+// Схема проверена на подписанных данных Max.
 function verifyInitData(initData) {
   if (!initData || !BOT_TOKEN) return { ok: false, reason: 'missing_data_or_token' };
 
@@ -41,8 +39,7 @@ function verifyInitData(initData) {
     crypto.timingSafeEqual(Buffer.from(computedHash), Buffer.from(receivedHash));
 
   if (!ok) {
-    // Deliberately does not log dataCheckString or the user object — those carry
-    // the player's id, name, IP and avatar URL straight into journalctl.
+    // Строка проверки и данные пользователя не записываются в журнал, поскольку содержат личную информацию.
     console.warn('[auth] initData hash mismatch');
     return { ok: false, reason: 'bad_hash' };
   }
@@ -57,7 +54,7 @@ function verifyInitData(initData) {
   try {
     user = JSON.parse(params.get('user') || 'null');
   } catch (e) {
-    // ignore
+    // Ошибка игнорируется.
   }
   if (!user || !user.id) return { ok: false, reason: 'no_user' };
 

@@ -109,7 +109,7 @@ html, body {
 
 h1 { font-size: 1.6rem; margin: 0 0 16px; text-align: center; }
 h2 { font-size: 1.15rem; margin: 0 0 12px; text-align: center; }
-#q-text { text-align: left; } /* question text reads better left-aligned during play */
+#q-text { text-align: left; } /* текст вопроса удобнее читать с выравниванием по левому краю */
 
 .btn-row {
   display: grid;
@@ -404,6 +404,7 @@ input[type="number"]::-webkit-inner-spin-button {
   box-sizing: border-box;
   margin-top: 12px;
 }
+#bot-link[hidden] { display: none; }
 
 .btn {
   width: 100%;
@@ -575,9 +576,7 @@ input[type="number"]::-webkit-inner-spin-button {
   font-size: 1.3rem;
 }
 
-/* The square itself is already green/red, so the score badges need a
-   neutral background of their own — otherwise a red "wrong" badge on a
-   green square (or vice versa) reads as almost invisible. */
+/* Контрастные значки счёта остаются заметными на зелёном и красном фоне. */
 .answer-square .score-correct,
 .answer-square .score-wrong {
   background: #000;

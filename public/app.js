@@ -1,10 +1,9 @@
 (function () {
   'use strict';
 
-  const SUPPORT_PROFILE_URL = 'https://max.ru/u/f9LHodD0cOKZMBqCkQNDf8u-l0fg-_Qrqho9o_1VUQxSQReqL5dyAxN0luM';
-  const BOT_USERNAME = 'id503303295000_bot';
+  const { botUsername: BOT_USERNAME = '', supportProfileUrl: SUPPORT_PROFILE_URL = '' } = window.QUIZ_CONFIG || {};
 
-  // --- MAX Bridge integration (safe no-ops if not running inside MAX) ---
+  // Интеграция с Max Bridge; вне Max вызовы безопасно пропускаются.
   const MaxApp = window.WebApp || null;
   let maxUser = null;
   let startParam = null;
@@ -16,11 +15,15 @@
     console.warn('MAX Bridge not available:', e);
   }
 
-  // --- DOM helpers ---
+  // Вспомогательные функции для работы с DOM.
   const $ = (id) => document.getElementById(id);
+  if (BOT_USERNAME) {
+    $('bot-link').href = `https://max.ru/${encodeURIComponent(BOT_USERNAME)}`;
+    $('bot-link').hidden = false;
+  }
+  $('btn-support').hidden = !SUPPORT_PROFILE_URL;
 
-  // Player names come straight from MAX profiles, i.e. they're user-controlled.
-  // Anything interpolated into innerHTML has to go through this first.
+  // Имена пользователей Max необходимо экранировать перед вставкой в innerHTML.
   function esc(value) {
     return String(value == null ? '' : value)
       .replace(/&/g, '&amp;')
@@ -41,7 +44,7 @@
     $('btn-close-lobby').hidden = !(name === 'lobby' && isHost);
   }
 
-  // --- Persistent session id, so a reload/reconnect can resume the same game ---
+  // Постоянный идентификатор сессии позволяет восстановить игру.
   let sessionId = localStorage.getItem('quiz_session_id');
   if (!sessionId) {
     sessionId = (crypto.randomUUID ? crypto.randomUUID() : `s_${Date.now()}_${Math.random().toString(36).slice(2)}`);
@@ -56,9 +59,9 @@
     avatarImg.hidden = false;
   }
 
-  // --- Profile screen: opened by tapping the avatar ---
+  // Профиль открывается нажатием на аватар.
   let profileSummary = null; // { name, photoUrl, rating, gamesPlayed, ratingVsBot, botGamesPlayed }
-  let myCustomPacks = []; // this player's own uploaded packs, usable only when creating a multiplayer room
+  let myCustomPacks = []; // наборы игрока для создания сетевой комнаты
   avatarImg.addEventListener('click', () => {
     if (!profileSummary) return;
     $('profile-avatar').src = profileSummary.photoUrl || '';
@@ -83,7 +86,7 @@
     if (saved) nameInput.value = saved;
   }
 
-  // --- Gate: only playable when opened inside MAX with a verified profile ---
+  // Играть можно только внутри Max с проверенным профилем.
   function showAccessBlocked() {
     $('access-checking').hidden = true;
     $('access-blocked').hidden = false;
@@ -99,13 +102,13 @@
   if (!MaxApp || !MaxApp.initData) {
     showAccessBlocked();
   } else {
-    // Waiting on the server to verify the signed initData (see 'auth_result' below).
+    // Ожидаем проверки подписанного initData сервером (см. auth_result).
     setTimeout(() => {
       if ($('access-checking').hidden === false) showAccessBlocked();
     }, 8000);
   }
 
-  // --- WebSocket ---
+  // Соединение WebSocket.
   const proto = location.protocol === 'https:' ? 'wss:' : 'ws:';
   const ws = new WebSocket(proto + '//' + location.host + '/ws');
 
@@ -116,9 +119,9 @@
   let questionDeadline = 0;
   let timerInterval = null;
   let lastPlayerCount = 0;
-  let resumedIntoRoom = false; // set by 'resumed' — blocks the start_param auto-join from stealing an existing session
+  let resumedIntoRoom = false; // устанавливается при resumed и предотвращает автоматический вход по start_param
   let joinedViaStartParam = false;
-  let lastGameRequest = null; // {mode, selection} of the last game started from this screen
+  let lastGameRequest = null; // {mode, selection} последней игры с этого экрана
 
   function send(msg) {
     if (ws.readyState === WebSocket.OPEN) ws.send(JSON.stringify(msg));
@@ -143,20 +146,14 @@
   });
 
   let packsData = { standalone: [], categories: [], overallCount: 0, maxQuestions: 30, defaultCount: 10 };
-  // The /api/packs fetch and the 'custom_packs' WS reply race each other — the
-  // WS round-trip usually wins. Until packsData actually has real numbers,
-  // rebuilding the topic list would show "0 questions" and collapse the count
-  // field to 1. Skip those premature rebuilds; loadPacks() rebuilds everything
-  // (library topics + whatever custom packs arrived by then) once it's ready.
+  // Ответ custom_packs может прийти раньше /api/packs. До загрузки данных не перестраиваем список, чтобы не показать нулевое число вопросов.
   let packsDataLoaded = false;
 
   function findCategory(id) {
     return packsData.categories.find((c) => c.id === id);
   }
 
-  // Solo/bot (home screen) and multiplayer (its own screen) each get their own
-  // independent topic/subtopic/count pickers, so choosing a topic for one
-  // doesn't affect the other. Both are built the same way, hence the factory.
+  // Выбор темы и числа вопросов в одиночной и сетевой игре независим; оба списка создаются одной фабрикой.
   function makeSelectionController(ids, opts) {
     opts = opts || {};
     const topicSelect = $(ids.topic);
@@ -182,10 +179,7 @@
         opt.textContent = `${c.title} (${c.totalCount})`;
         topicSelect.appendChild(opt);
       }
-      // Custom packs are only offered where they're actually usable — creating
-      // a multiplayer room for friends — never for solo/bot on the home screen.
-      // They're grouped the same way as a library category: "Мои паки" as the
-      // topic, individual pack names as its subtopics.
+      // Пользовательские наборы доступны только при создании сетевой комнаты в разделе «Мои паки».
       if (opts.includeCustom && myCustomPacks.length > 0) {
         const opt = document.createElement('option');
         opt.value = 'customcat:mine';
@@ -319,8 +313,7 @@
           renderFinal(msg.leaderboard, msg.review, msg.totalQuestions);
           showScreen('final');
         } else {
-          // Reconnected during the brief reveal window between questions —
-          // just wait for the next 'question' broadcast.
+          // При восстановлении между вопросами ждём следующего сообщения question.
           $('reveal-title').textContent = 'Переподключение…';
           $('reveal-answers').innerHTML = '';
           showScreen('reveal');
@@ -344,9 +337,7 @@
         showPlayArea();
         if (msg.profile) {
           $('rating-display').hidden = false;
-          // Matchmaking rating isn't live yet (always 1000/0), so the bot rating
-          // is shown first — it's the one with real numbers behind it right now.
-          // A friends-rating line can slot in here the same way once that exists.
+          // Рейтинг подбора соперников ещё не работает, поэтому первым показывается рейтинг против бота.
           $('rating-display').innerHTML =
             `🤖 Против бота: ${msg.profile.ratingVsBot} · игр: ${msg.profile.botGamesPlayed}<br>` +
             `🏆 Рейтинг: ${msg.profile.rating} · игр: ${msg.profile.gamesPlayed}`;
@@ -362,12 +353,8 @@
         if (msg.isAdmin) {
           $('btn-admin').hidden = false;
         }
-        send({ type: 'get_custom_packs' }); // so the multiplayer topic picker has them ready right away
-        // Opened via an invite link (?startapp=CODE) — join that room straight away
-        // instead of making them type the code in by hand. MAX keeps re-supplying
-        // the same start_param on every reload within this session, so once the
-        // player deliberately leaves (leaveAndReload below), remember that and
-        // don't auto-rejoin them right back in.
+        send({ type: 'get_custom_packs' }); // заранее загружаем наборы для выбора темы в сетевой игре
+        // При открытии по приглашению сразу входим в комнату. После выхода запоминаем отказ, чтобы не подключать игрока снова.
         let declinedStartParam = null;
         try { declinedStartParam = sessionStorage.getItem('declined_start_param'); } catch (e) {}
         if (
@@ -445,8 +432,7 @@
 
       case 'room_closed':
         showScreen('home');
-        // Buttons were disabled when this player joined the room — re-enable them,
-        // otherwise they're stranded on the home screen unable to start anything.
+        // Повторно включаем кнопки, отключённые при входе в комнату.
         setRoomButtonsDisabled(false);
         showRoomClosedNotice(msg.reason === 'host_left'
           ? 'Хост закрыл комнату'
@@ -605,8 +591,7 @@
     });
   }
 
-  // Reconnected mid-question having already answered: put the board back the way
-  // they left it, so the options aren't clickable again and the result is visible.
+  // После переподключения восстанавливаем данный ответ, чтобы нельзя было ответить повторно.
   function restoreAnsweredState(answered) {
     currentOptionIndex = answered.optionIndex;
     const buttons = document.querySelectorAll('#q-options .opt-btn');
@@ -684,7 +669,7 @@
 
     renderReview(review, totalQuestions);
 
-    // Replaying only makes sense when you don't need anyone else to show up.
+    // Повтор игры возможен, когда не нужно ждать других игроков.
     const canReplay = gameMode !== 'multiplayer' && lastGameRequest !== null;
     $('btn-play-again').hidden = !canReplay;
     $('btn-play-again').disabled = false;
@@ -821,8 +806,7 @@
     const container = $('profile-topics');
     container.innerHTML = '';
     $('profile-topics-empty').hidden = categories.length > 0;
-    // Accordion: opening one category's subtopic list collapses whichever was open before,
-    // so the profile doesn't turn into one long wall of lists as more topics get played.
+    // При открытии категории закрываем предыдущую, чтобы профиль не разрастался.
     let openEntry = null;
     categories.forEach((cat) => {
       const pct = cat.total ? Math.round((cat.correct / cat.total) * 100) : 0;
@@ -1004,7 +988,7 @@
   $('btn-add-pack').addEventListener('click', () => $('custom-pack-file').click());
   $('custom-pack-file').addEventListener('change', () => {
     const file = $('custom-pack-file').files[0];
-    $('custom-pack-file').value = ''; // allow re-selecting the same file later
+    $('custom-pack-file').value = ''; // позволяет повторно выбрать тот же файл
     if (!file) return;
     const reader = new FileReader();
     reader.onload = () => {
@@ -1024,7 +1008,7 @@
     reader.readAsText(file);
   });
 
-  // --- Manual pack builder: walks the player through one question at a time ---
+  // Редактор набора проводит игрока по вопросам по одному.
   let pbQuestions = [];
 
   function pbUpdateCount() {
@@ -1115,7 +1099,7 @@
     send({ type: 'admin_check_duplicates' });
   });
 
-  // --- Anti-cheat: flag tab-switching / losing focus while a question is live ---
+  // Античит отмечает переключение вкладки и потерю фокуса во время вопроса.
   function reportDistractionIfNeeded() {
     if (!onQuestionScreen || distractionReported) return;
     if (document.hidden || !document.hasFocus()) {
@@ -1126,10 +1110,7 @@
   document.addEventListener('visibilitychange', reportDistractionIfNeeded);
   window.addEventListener('blur', reportDistractionIfNeeded);
 
-  // --- Home screen actions ---
-  // Guards against a fast double-click sending two create/join requests before
-  // the first response comes back (which would otherwise leave an orphaned
-  // room on the server).
+  // Действия на главном экране. Защита от двойного нажатия не даёт создать лишнюю комнату до ответа сервера.
   const roomActionButtons = ['btn-create', 'btn-solo', 'btn-bot', 'btn-join'].map($);
   function setRoomButtonsDisabled(disabled) {
     roomActionButtons.forEach((b) => { b.disabled = disabled; });
@@ -1148,7 +1129,7 @@
   function createRoom(mode) {
     const name = (nameInput.value || 'Игрок').trim().slice(0, 24);
     const selection = (mode === 'multiplayer' ? mpSelection : homeSelection).buildSelection();
-    lastGameRequest = { mode, selection }; // remembered so "Играть снова" can repeat it
+    lastGameRequest = { mode, selection }; // запоминаем настройки для кнопки «Играть снова»
     localStorage.setItem('quiz_name', name);
     $('home-error').textContent = '';
     $('mp-error').textContent = '';
@@ -1178,12 +1159,9 @@
   });
 
   function leaveAndReload() {
-    // Tell the server this is a deliberate exit, not a dropped connection —
-    // otherwise the reconnect logic would resume us right back into the room.
+    // Сообщаем серверу о намеренном выходе, чтобы восстановление не вернуло игрока в комнату.
     send({ type: 'leave_room' });
-    // Also remember we declined this invite link's room, so the start_param
-    // auto-join (MAX keeps resupplying it on every reload) doesn't pull us
-    // straight back in.
+    // Запоминаем отказ от приглашения, чтобы повторный start_param не подключил игрока обратно.
     if (startParam) {
       try { sessionStorage.setItem('declined_start_param', startParam); } catch (e) {}
     }
@@ -1200,9 +1178,7 @@
 
   $('btn-restart').addEventListener('click', leaveAndReload);
 
-  // Replays the last solo/bot game with the same topic and settings, so you
-  // don't have to walk back through the menu to pick everything again.
-  // The server vacates the finished room on create_room, no explicit leave needed.
+  // Повторяем последнюю одиночную игру или игру с ботом с прежними настройками. Сервер сам освобождает завершённую комнату.
   $('btn-play-again').addEventListener('click', () => {
     if (!lastGameRequest) return;
     $('btn-play-again').disabled = true;
@@ -1215,7 +1191,7 @@
     });
   });
 
-  // --- Abort quiz (mid-game) ---
+  // Прерывание игры.
   $('btn-abort').addEventListener('click', () => {
     openConfirm(
       gameMode === 'bot'
@@ -1228,7 +1204,7 @@
     );
   });
 
-  // --- Close lobby (host only) — closes the room for everyone, so use a confirmation ---
+  // Закрытие лобби ведущим требует подтверждения: комната закроется для всех.
   $('btn-close-lobby').addEventListener('click', () => {
     openConfirm(
       lastPlayerCount > 1
@@ -1251,10 +1227,10 @@
     if (action) action();
   });
 
-  // --- Leave lobby before the game has started (guest, no confirmation needed) ---
+  // Выход гостя из лобби до начала игры не требует подтверждения.
   $('btn-back').addEventListener('click', leaveAndReload);
 
-  // --- Support: open the admin's MAX profile so people can message them ---
+  // Ссылка на профиль поддержки в Max.
   $('btn-support').addEventListener('click', () => {
     try {
       if (MaxApp && typeof MaxApp.openMaxLink === 'function') {
@@ -1267,7 +1243,7 @@
     window.open(SUPPORT_PROFILE_URL, '_blank');
   });
 
-  // --- Copy room code ---
+  // Копирование кода комнаты.
   $('btn-copy-code').addEventListener('click', async () => {
     const btn = $('btn-copy-code');
     try {
@@ -1291,12 +1267,11 @@
     }
   });
 
-  // --- Invite a friend via MAX's native share sheet ---
+  // Приглашение друга через окно Max.
   $('btn-share').addEventListener('click', () => {
     const text = `Присоединяйся к моей викторине в Max! Код комнаты: ${roomCode}`;
-    // Deep link with ?startapp= opens the mini-app straight into this room —
-    // the code arrives in initDataUnsafe.start_param, no need to type it in.
-    const inviteLink = `https://max.ru/${BOT_USERNAME}?startapp=${roomCode}`;
+    // Ссылка с startapp передаёт код комнаты через initDataUnsafe.start_param.
+    const inviteLink = BOT_USERNAME ? `https://max.ru/${encodeURIComponent(BOT_USERNAME)}?startapp=${encodeURIComponent(roomCode)}` : '';
     try {
       if (MaxApp && typeof MaxApp.shareMaxContent === 'function') {
         MaxApp.shareMaxContent({ text, link: inviteLink });
@@ -1309,7 +1284,7 @@
     } catch (e) {
       console.warn('Share failed:', e);
     }
-    // Outside MAX (plain browser testing) — just copy the invite text instead.
+    // Вне Max копируем приглашение в буфер обмена.
     navigator.clipboard?.writeText(`${text} ${inviteLink}`).catch(() => {});
   });
 })();
